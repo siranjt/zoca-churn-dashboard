@@ -1,0 +1,1942 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Zoca · Churn Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --brand:#4d65ff;
+  --brand-2:#6b7fff;
+  --brand-3:#8a9bff;
+  --pink:#ffa8cd;
+  --pink-2:#ff7ab2;
+  --bg-0:#07081a;
+  --bg-1:#0c0e24;
+  --bg-2:#13152e;
+  --bg-3:#1a1d3a;
+  --line:rgba(255,255,255,.08);
+  --line-2:rgba(255,255,255,.14);
+  --ink:#eef0ff;
+  --ink-dim:#a6abd4;
+  --ink-dimmer:#6b719a;
+  --ok:#4ade80;
+  --warn:#fbbf24;
+  --bad:#f87171;
+  --card:rgba(255,255,255,.035);
+  --card-hover:rgba(255,255,255,.06);
+  --glass-blur:saturate(140%) blur(14px);
+  --radius:14px;
+  --radius-lg:20px;
+  --shadow-1:0 10px 30px rgba(0,0,0,.35);
+  --shadow-2:0 20px 60px rgba(77,101,255,.18);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-0);color:var(--ink);font-family:'Montserrat',system-ui,-apple-system,Segoe UI,Arial,sans-serif;font-size:13.5px;line-height:1.45;-webkit-font-smoothing:antialiased}
+body{
+  min-height:100vh;
+  background:
+    radial-gradient(1200px 600px at -10% -10%, rgba(77,101,255,.22), transparent 60%),
+    radial-gradient(900px 500px at 110% 0%, rgba(255,168,205,.18), transparent 55%),
+    radial-gradient(1400px 800px at 50% 120%, rgba(77,101,255,.10), transparent 60%),
+    var(--bg-0);
+}
+a{color:var(--brand-3);text-decoration:none}
+a:hover{color:var(--pink)}
+button{font-family:inherit;cursor:pointer}
+.wrap{max-width:1600px;margin:0 auto;padding:28px 28px 80px}
+
+/* Header */
+header.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:20px;
+  padding:18px 22px;border-radius:var(--radius-lg);
+  background:linear-gradient(135deg, rgba(77,101,255,.22), rgba(255,168,205,.1));
+  border:1px solid var(--line-2);
+  backdrop-filter:var(--glass-blur);
+  box-shadow:var(--shadow-2);
+  margin-bottom:22px;
+}
+.brand{display:flex;align-items:center;gap:14px}
+.brand .logo{display:flex;align-items:center;height:28px}
+.brand .logo svg{height:26px;width:auto}
+.brand .sep{width:1px;height:26px;background:rgba(255,255,255,.18)}
+.brand .title{font-weight:800;letter-spacing:.2px;font-size:15px}
+.brand .title span{display:block;color:var(--ink-dim);font-weight:500;font-size:11px;margin-top:2px}
+.top-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:7px 12px;border-radius:999px;
+  background:rgba(255,255,255,.05);border:1px solid var(--line-2);
+  font-size:11.5px;color:var(--ink-dim);font-weight:500;
+}
+.pill b{color:var(--ink);font-weight:700}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(74,222,128,.18)}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px;margin-bottom:20px}
+.kpi{
+  position:relative;overflow:hidden;
+  background:var(--card);border:1px solid var(--line);
+  border-radius:var(--radius);padding:16px 16px 14px;
+  backdrop-filter:var(--glass-blur);
+  transition:transform .18s ease, border-color .18s ease, background .18s ease;
+}
+.kpi:hover{transform:translateY(-2px);border-color:var(--line-2);background:var(--card-hover)}
+.kpi::after{content:"";position:absolute;inset:auto -30% -50% auto;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(77,101,255,.25),transparent 70%);pointer-events:none}
+.kpi .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--ink-dimmer);font-weight:600}
+.kpi .val{font-size:26px;font-weight:800;margin-top:6px;letter-spacing:-.3px}
+.kpi .sub{font-size:11px;color:var(--ink-dim);margin-top:4px}
+.kpi.pink::after{background:radial-gradient(circle,rgba(255,168,205,.28),transparent 70%)}
+.kpi .val.up{color:var(--bad)}
+.kpi .val.down{color:var(--ok)}
+
+/* Controls */
+.controls{
+  background:var(--card);border:1px solid var(--line);
+  border-radius:var(--radius);padding:14px;margin-bottom:18px;
+  backdrop-filter:var(--glass-blur);
+  display:grid;grid-template-columns:repeat(12,1fr);gap:10px;align-items:end;
+}
+.controls .field{display:flex;flex-direction:column;gap:4px}
+.controls label{font-size:10.5px;color:var(--ink-dimmer);text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+.controls input, .controls select{
+  background:rgba(255,255,255,.04);border:1px solid var(--line-2);color:var(--ink);
+  padding:9px 11px;border-radius:10px;font:inherit;font-size:12.5px;outline:none;
+  transition:border-color .15s ease;
+}
+.controls input:focus, .controls select:focus{border-color:var(--brand)}
+.controls .range-pills{display:flex;gap:6px;flex-wrap:wrap}
+.rp{
+  padding:8px 12px;font-size:11.5px;font-weight:600;border-radius:999px;
+  background:rgba(255,255,255,.04);border:1px solid var(--line-2);color:var(--ink-dim);
+  transition:all .15s ease;
+}
+.rp:hover{color:var(--ink);border-color:var(--brand)}
+.rp.active{background:var(--brand);color:#fff;border-color:var(--brand);box-shadow:0 4px 14px rgba(77,101,255,.35)}
+.btn{
+  padding:9px 14px;border-radius:10px;border:1px solid var(--line-2);
+  background:rgba(255,255,255,.04);color:var(--ink);font-size:12px;font-weight:600;
+  transition:all .15s ease;
+}
+.btn:hover{border-color:var(--brand);color:#fff}
+.btn.primary{background:linear-gradient(135deg,var(--brand),var(--brand-2));border-color:transparent;box-shadow:0 6px 18px rgba(77,101,255,.35)}
+.btn.primary:hover{transform:translateY(-1px)}
+.btn.pink{background:linear-gradient(135deg,var(--pink),var(--pink-2));border-color:transparent;color:#2a0c1c}
+.row-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Topbar refresh button */
+#btnRefresh{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:8px 14px;border-radius:999px;font-size:11.5px;
+  box-shadow:0 4px 14px rgba(255,168,205,.28);
+}
+#btnRefresh .btn-refresh-icon{
+  display:inline-block;font-size:14px;line-height:1;transform:translateY(-1px);
+}
+#btnRefresh.spin .btn-refresh-icon{animation:rfspin 1.1s linear infinite}
+#btnRefresh:disabled{opacity:.7;cursor:progress}
+@keyframes rfspin{to{transform:rotate(360deg) translateY(-1px)}}
+
+/* Refresh modal */
+.rf-backdrop{
+  position:fixed;inset:0;background:rgba(5,9,23,.75);
+  display:flex;align-items:center;justify-content:center;
+  z-index:1000;backdrop-filter:blur(8px);
+  animation:rfbd .2s ease;
+}
+.rf-backdrop.hidden{display:none}
+@keyframes rfbd{from{opacity:0}to{opacity:1}}
+.rf-box{
+  width:min(520px, calc(100vw - 48px));
+  background:linear-gradient(180deg, rgba(34,41,67,.98), rgba(22,27,47,.98));
+  border:1px solid var(--line-2);border-radius:var(--radius-lg);
+  box-shadow:0 30px 80px rgba(0,0,0,.6);
+  overflow:hidden;
+  animation:rfbox .22s cubic-bezier(.2,.9,.4,1);
+}
+@keyframes rfbox{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+.rf-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 22px;border-bottom:1px solid var(--line-2);
+  background:linear-gradient(135deg, rgba(255,168,205,.1), rgba(77,101,255,.06));
+}
+.rf-title{font-size:15px;font-weight:800;color:#fff}
+.rf-close{
+  background:transparent;border:none;color:var(--ink-dim);
+  font-size:22px;line-height:1;width:28px;height:28px;border-radius:8px;
+}
+.rf-close:hover{background:rgba(255,255,255,.06);color:#fff}
+.rf-body{padding:20px 22px 10px}
+.rf-p{margin:0 0 10px;font-size:13px;color:var(--ink);line-height:1.55}
+.rf-sub{color:var(--ink-dim);font-size:12px;margin-bottom:16px}
+.rf-pat-wrap{margin-top:8px}
+.rf-label{display:block;font-size:11.5px;color:var(--ink-dim);font-weight:600;margin-bottom:6px}
+.rf-hint{color:var(--ink-dim);font-weight:400;font-size:10.5px}
+.rf-input{
+  width:100%;padding:11px 14px;
+  background:rgba(255,255,255,.04);border:1px solid var(--line-2);
+  border-radius:10px;color:var(--ink);font-size:12.5px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+}
+.rf-input:focus{outline:none;border-color:var(--pink);box-shadow:0 0 0 3px rgba(255,168,205,.14)}
+.rf-pat-help{margin-top:8px;font-size:11px;color:var(--ink-dim);line-height:1.5}
+.rf-pat-help code{
+  background:rgba(255,255,255,.06);padding:1px 6px;border-radius:4px;
+  font-size:10.5px;color:var(--ink)
+}
+.rf-pat-help a{color:var(--pink);font-weight:600}
+.rf-status{
+  margin-top:16px;padding:12px 14px;border-radius:10px;
+  font-size:12px;line-height:1.5;display:none;
+}
+.rf-status.show{display:block}
+.rf-status.info{background:rgba(77,101,255,.14);border:1px solid rgba(77,101,255,.4);color:#cfd8ff}
+.rf-status.ok{background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.4);color:#c8f7d4}
+.rf-status.err{background:rgba(255,99,132,.12);border:1px solid rgba(255,99,132,.45);color:#ffd5dc}
+.rf-foot{
+  display:flex;justify-content:flex-end;gap:10px;
+  padding:14px 22px 18px;border-top:1px solid var(--line-2);
+  background:rgba(255,255,255,.02);
+}
+
+/* Tabs */
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.tab{
+  padding:10px 18px;border-radius:12px 12px 0 0;cursor:pointer;
+  background:rgba(255,255,255,.03);border:1px solid var(--line);border-bottom:none;
+  color:var(--ink-dim);font-size:12.5px;font-weight:600;
+  transition:all .15s ease;
+}
+.tab:hover{color:var(--ink);background:rgba(255,255,255,.06)}
+.tab.active{
+  background:linear-gradient(180deg,rgba(77,101,255,.22),rgba(77,101,255,.05));
+  color:#fff;border-color:var(--brand);position:relative;
+}
+.tab.active::after{content:"";position:absolute;left:10%;right:10%;bottom:-1px;height:2px;background:var(--brand);box-shadow:0 0 14px var(--brand)}
+.tab .count{margin-left:8px;font-size:10.5px;padding:2px 7px;border-radius:999px;background:rgba(255,255,255,.08);color:var(--ink);font-weight:700}
+
+.panel{
+  background:var(--card);border:1px solid var(--line);border-radius:0 var(--radius) var(--radius) var(--radius);
+  padding:18px;backdrop-filter:var(--glass-blur);
+}
+.panel.hidden{display:none}
+.panel h2{margin:0 0 12px;font-size:14px;font-weight:700;letter-spacing:.3px}
+.panel h3{margin:0 0 8px;font-size:12px;font-weight:700;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.6px}
+
+/* Charts grid */
+.grid{display:grid;gap:14px}
+.grid.c2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.grid.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.card{
+  background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px;transition:border-color .15s ease;
+}
+.card:hover{border-color:var(--line-2)}
+.card .hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.card .hdr .ttl{font-size:12px;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:.4px}
+.card .hdr .sub{font-size:10.5px;color:var(--ink-dimmer)}
+.chart-box{position:relative;height:240px}
+.chart-box.tall{height:320px}
+
+/* Tables */
+.tbl-wrap{overflow:auto;max-height:640px;border:1px solid var(--line);border-radius:var(--radius)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{
+  position:sticky;top:0;z-index:2;
+  background:linear-gradient(180deg,#1a1d3a,#13152e);
+  color:var(--ink);font-weight:700;text-align:left;
+  padding:11px 12px;border-bottom:1px solid var(--line-2);
+  text-transform:uppercase;font-size:10.5px;letter-spacing:.5px;white-space:nowrap;
+  cursor:pointer;user-select:none;
+}
+thead th:hover{color:var(--pink)}
+thead th.sorted::after{content:" ▼";color:var(--brand-3);font-size:9px}
+thead th.sorted.asc::after{content:" ▲"}
+tbody td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:hover{background:rgba(77,101,255,.07);cursor:pointer}
+tbody tr.selected{background:rgba(255,168,205,.09)}
+.badge{
+  display:inline-block;padding:3px 9px;border-radius:999px;
+  font-size:10.5px;font-weight:700;letter-spacing:.3px;
+  border:1px solid var(--line-2);
+}
+.b-high{background:rgba(248,113,113,.14);color:#fca5a5;border-color:rgba(248,113,113,.35)}
+.b-med{background:rgba(251,191,36,.14);color:#fcd34d;border-color:rgba(251,191,36,.35)}
+.b-low{background:rgba(74,222,128,.12);color:#86efac;border-color:rgba(74,222,128,.3)}
+.b-none{background:rgba(166,171,212,.1);color:var(--ink-dim)}
+.b-brand{background:rgba(77,101,255,.16);color:var(--brand-3);border-color:rgba(77,101,255,.4)}
+.b-pink{background:rgba(255,168,205,.12);color:var(--pink);border-color:rgba(255,168,205,.35)}
+td.biz{font-weight:700;color:#fff}
+td.amt{font-variant-numeric:tabular-nums}
+td.dim{color:var(--ink-dim)}
+.spark{display:inline-block;vertical-align:middle}
+
+/* Modal */
+.modal-scrim{
+  position:fixed;inset:0;background:rgba(3,4,15,.78);backdrop-filter:blur(8px);
+  display:none;align-items:center;justify-content:center;z-index:100;padding:32px;
+}
+.modal-scrim.open{display:flex}
+.modal{
+  width:min(1100px,100%);max-height:90vh;overflow:hidden;
+  background:linear-gradient(180deg,#13152e,#0c0e24);
+  border:1px solid var(--line-2);border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-2);display:flex;flex-direction:column;
+}
+.modal-hdr{
+  padding:20px 24px;border-bottom:1px solid var(--line-2);
+  background:linear-gradient(135deg,rgba(77,101,255,.2),rgba(255,168,205,.08));
+  display:flex;justify-content:space-between;align-items:flex-start;gap:16px;
+}
+.modal-hdr h2{margin:0;font-size:18px;font-weight:800}
+.modal-hdr .sub{font-size:11.5px;color:var(--ink-dim);margin-top:4px}
+.modal-hdr .close{
+  background:rgba(255,255,255,.08);border:1px solid var(--line-2);color:var(--ink);
+  width:34px;height:34px;border-radius:10px;font-size:16px;font-weight:700;
+}
+.modal-hdr .close:hover{background:rgba(248,113,113,.18);border-color:#f87171}
+.modal-body{padding:20px 24px;overflow:auto;flex:1}
+.mstat{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;
+}
+.mstat .b{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.mstat .b .l{font-size:10px;text-transform:uppercase;color:var(--ink-dimmer);font-weight:600;letter-spacing:.5px}
+.mstat .b .v{font-size:17px;font-weight:800;margin-top:3px}
+.mstat .b .v.small{font-size:12px;font-weight:700}
+
+.detail-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:18px}
+.dl{display:grid;grid-template-columns:110px 1fr;gap:6px 12px;font-size:11.5px}
+.dl dt{color:var(--ink-dimmer);text-transform:uppercase;font-size:10px;letter-spacing:.4px;font-weight:600;padding-top:2px}
+.dl dd{margin:0;color:var(--ink)}
+.kw{display:flex;flex-wrap:wrap;gap:6px}
+.kw span{padding:4px 10px;border-radius:999px;background:rgba(77,101,255,.14);color:var(--brand-3);border:1px solid rgba(77,101,255,.3);font-size:10.5px;font-weight:600}
+
+.timeline{border-left:2px solid var(--line-2);padding-left:18px;margin-top:4px}
+.tline-empty{color:var(--ink-dim);padding:20px;text-align:center;border:1px dashed var(--line-2);border-radius:12px}
+.msg{
+  position:relative;margin-bottom:14px;padding:12px 14px;
+  background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:10px;
+}
+.msg::before{
+  content:"";position:absolute;left:-25px;top:14px;width:10px;height:10px;border-radius:50%;
+  background:var(--ink-dimmer);box-shadow:0 0 0 3px var(--bg-0);
+}
+.msg.in::before{background:var(--pink)}
+.msg.out::before{background:var(--brand)}
+.msg .mhdr{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;font-size:10.5px;color:var(--ink-dimmer);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.msg .mhdr .right{display:flex;gap:6px;align-items:center}
+.msg .body{font-size:12px;color:var(--ink);line-height:1.5;word-break:break-word}
+.msg.in{border-left:3px solid var(--pink)}
+.msg.out{border-left:3px solid var(--brand)}
+.dir-pill{padding:2px 7px;border-radius:999px;font-size:9.5px;font-weight:700;text-transform:uppercase}
+.dir-pill.in{background:rgba(255,168,205,.14);color:var(--pink)}
+.dir-pill.out{background:rgba(77,101,255,.14);color:var(--brand-3)}
+.dir-pill.unknown{background:rgba(166,171,212,.1);color:var(--ink-dim)}
+
+.modal-loading{display:flex;align-items:center;justify-content:center;padding:60px;color:var(--ink-dim);font-size:13px}
+.spinner{width:22px;height:22px;border:2px solid rgba(255,255,255,.15);border-top-color:var(--brand);border-radius:50%;animation:sp 0.9s linear infinite;margin-right:12px}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* Keyword cloud */
+.cloud{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 0}
+.cloud .w{padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid var(--line-2);color:var(--ink);font-weight:600}
+
+/* ---- Root Cause / Why-this-happened styling ---- */
+.cause-badge{
+  display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;
+  font-size:10.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
+  border:1px solid var(--line-2);
+}
+.cause-badge.explicit_cancellation{background:rgba(248,113,113,.16);color:#fca5a5;border-color:rgba(248,113,113,.4)}
+.cause-badge.results_failure{background:rgba(251,146,60,.16);color:#fdba74;border-color:rgba(251,146,60,.4)}
+.cause-badge.competitive_switch{background:rgba(244,114,182,.14);color:#f9a8d4;border-color:rgba(244,114,182,.38)}
+.cause-badge.service_complaint{background:rgba(251,191,36,.14);color:#fcd34d;border-color:rgba(251,191,36,.38)}
+.cause-badge.billing_breakdown{background:rgba(168,85,247,.16);color:#d8b4fe;border-color:rgba(168,85,247,.4)}
+.cause-badge.ghost_churn{background:rgba(107,113,154,.22);color:#c5c9e6;border-color:rgba(107,113,154,.5)}
+.cause-badge.expectation_gap{background:rgba(96,165,250,.14);color:#93c5fd;border-color:rgba(96,165,250,.38)}
+.cause-badge.silent_drift{background:rgba(77,101,255,.16);color:var(--brand-3);border-color:rgba(77,101,255,.4)}
+.cause-badge.reactive_fade{background:rgba(34,211,238,.14);color:#67e8f9;border-color:rgba(34,211,238,.38)}
+.cause-badge.unknown{background:rgba(166,171,212,.12);color:var(--ink-dim)}
+
+.prev-badge{
+  display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;
+  font-size:10.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;border:1px solid var(--line-2);
+}
+.prev-badge.High{background:rgba(74,222,128,.14);color:#86efac;border-color:rgba(74,222,128,.38)}
+.prev-badge.Medium{background:rgba(251,191,36,.14);color:#fcd34d;border-color:rgba(251,191,36,.38)}
+.prev-badge.Low{background:rgba(166,171,212,.12);color:var(--ink-dim)}
+
+.why-panel{
+  background:linear-gradient(135deg, rgba(77,101,255,.11), rgba(255,168,205,.06));
+  border:1px solid rgba(77,101,255,.28);border-radius:var(--radius);
+  padding:18px 20px;margin-bottom:18px;
+}
+.why-panel .why-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.why-panel .why-head h3{margin:0;font-size:11px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.7px;font-weight:700}
+.why-panel .why-narr{font-size:13px;color:#eef0ff;line-height:1.6;margin-bottom:14px}
+.why-panel .turning{
+  display:flex;gap:10px;align-items:center;padding:9px 13px;margin-bottom:14px;
+  background:rgba(255,168,205,.08);border:1px solid rgba(255,168,205,.3);
+  border-radius:10px;font-size:11.5px;color:var(--ink);
+}
+.why-panel .turning b{color:var(--pink);font-weight:700}
+
+.sig-list{list-style:none;padding:0;margin:0 0 14px;display:grid;gap:6px}
+.sig-list li{
+  display:flex;gap:10px;padding:8px 11px;
+  background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:9px;
+  font-size:11.5px;color:var(--ink);align-items:flex-start;
+}
+.sig-list li .d{color:var(--pink);font-weight:700;min-width:88px;font-size:11px}
+.sig-list li .t{color:var(--ink-dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:600;min-width:120px}
+.sig-list li .x{color:var(--ink);flex:1}
+
+.rec-list{list-style:none;padding:0;margin:0;display:grid;gap:7px}
+.rec-list li{
+  padding:9px 12px;background:rgba(77,101,255,.08);border-left:3px solid var(--brand);
+  border-radius:8px;font-size:12px;color:#eef0ff;line-height:1.5;
+}
+.rec-list li .tag{
+  display:inline-block;padding:2px 7px;border-radius:5px;font-size:9.5px;font-weight:700;
+  background:rgba(77,101,255,.22);color:var(--brand-3);margin-right:8px;text-transform:uppercase;letter-spacing:.4px;
+}
+
+.cause-summary-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+
+.priority-save{
+  padding:14px 16px;margin-bottom:10px;border-radius:12px;
+  background:rgba(255,255,255,.035);border:1px solid var(--line);
+  transition:border-color .15s ease, background .15s ease;
+}
+.priority-save:hover{border-color:rgba(255,168,205,.4);background:rgba(255,168,205,.05);cursor:pointer}
+.priority-save .ps-hdr{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px;flex-wrap:wrap}
+.priority-save .ps-biz{font-weight:800;font-size:14px;color:#fff}
+.priority-save .ps-meta{font-size:10.5px;color:var(--ink-dim)}
+.priority-save .ps-amt{font-weight:800;color:var(--pink);font-size:14px}
+.priority-save .ps-narr{font-size:11.5px;color:var(--ink);line-height:1.5;margin-bottom:9px}
+.priority-save .ps-recs{display:flex;flex-direction:column;gap:4px}
+.priority-save .ps-rec{font-size:11px;color:var(--ink-dim);padding:4px 0;border-left:2px solid rgba(77,101,255,.4);padding-left:9px}
+
+.cause-tbl{width:100%;border-collapse:collapse}
+.cause-tbl th,.cause-tbl td{padding:9px 12px;border-bottom:1px solid var(--line);font-size:11.5px;text-align:left}
+.cause-tbl th{color:var(--ink-dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.cause-tbl td.amt{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.cause-tbl tr:last-child td{border-bottom:none}
+
+.rec-tag-list{display:flex;flex-direction:column;gap:6px}
+.rec-tag-list .rtl{display:flex;justify-content:space-between;gap:10px;padding:8px 12px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;font-size:11.5px}
+.rec-tag-list .rtl b{color:var(--pink);font-weight:800}
+
+/* ---- Payment panel ---- */
+.pay-panel{
+  background:linear-gradient(135deg, rgba(77,101,255,.08), rgba(74,222,128,.05));
+  border:1px solid rgba(74,222,128,.24);border-radius:var(--radius);
+  padding:18px 20px;margin:18px 0;
+}
+.pay-panel .pay-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.pay-panel .pay-head h3{margin:0;font-size:11px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.7px;font-weight:700}
+.pay-panel .pay-head .spacer{flex:1}
+.pay-panel .pay-head .err{color:var(--bad);font-size:11px}
+.pay-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
+.pay-kpis .b{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.pay-kpis .b .l{font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-dimmer);font-weight:700}
+.pay-kpis .b .v{font-size:15px;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums}
+.pay-kpis .b .v.ok{color:var(--ok)}
+.pay-kpis .b .v.warn{color:var(--warn)}
+.pay-kpis .b .v.bad{color:var(--bad)}
+.pay-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:12px}
+.pay-chart-wrap{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:10px;padding:12px;min-height:180px;position:relative}
+.pay-chart-wrap canvas{max-height:200px}
+.pay-signals{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:10px;padding:12px;overflow:auto;max-height:240px}
+.pay-signals .empty-sig{color:var(--ink-dim);font-size:11px;padding:8px}
+.pay-signals .sig{
+  display:flex;gap:10px;padding:8px 10px;margin-bottom:6px;
+  background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;
+  font-size:11px;align-items:flex-start;
+}
+.pay-signals .sig .sev{
+  display:inline-block;padding:2px 7px;border-radius:4px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;min-width:50px;text-align:center;
+}
+.pay-signals .sig .sev.high{background:rgba(248,113,113,.2);color:#fca5a5}
+.pay-signals .sig .sev.medium{background:rgba(251,191,36,.18);color:#fcd34d}
+.pay-signals .sig .sev.low{background:rgba(166,171,212,.14);color:var(--ink-dim)}
+.pay-signals .sig .t{color:var(--ink-dim);min-width:90px;font-size:10px;text-transform:uppercase;letter-spacing:.3px;font-weight:700}
+.pay-signals .sig .x{color:var(--ink);flex:1;font-size:10.5px}
+.pay-tbl-wrap{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:10px;padding:6px;overflow:auto;max-height:260px}
+.pay-tbl{width:100%;border-collapse:collapse;font-size:10.5px}
+.pay-tbl th,.pay-tbl td{padding:6px 9px;text-align:left;border-bottom:1px solid var(--line)}
+.pay-tbl thead th{position:sticky;top:0;background:var(--bg-2);color:var(--ink-dim);text-transform:uppercase;font-size:9px;letter-spacing:.4px;z-index:1}
+.pay-tbl td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.pay-tbl .pill-s{display:inline-block;padding:2px 7px;border-radius:4px;font-size:9px;font-weight:800;text-transform:uppercase}
+.pay-tbl .pill-s.paid{background:rgba(74,222,128,.18);color:#86efac}
+.pay-tbl .pill-s.payment_due,.pay-tbl .pill-s.not_paid{background:rgba(248,113,113,.18);color:#fca5a5}
+.pay-tbl .pill-s.voided{background:rgba(166,171,212,.14);color:var(--ink-dim)}
+.pay-tbl .pill-s.success{background:rgba(74,222,128,.18);color:#86efac}
+.pay-tbl .pill-s.failure{background:rgba(248,113,113,.18);color:#fca5a5}
+.pay-tbl .pill-s.in_progress{background:rgba(96,165,250,.18);color:#93c5fd}
+.pay-tbl .pill-s.refund,.pay-tbl .pill-s.refunded{background:rgba(251,146,60,.16);color:#fdba74}
+.pay-tabs{display:flex;gap:2px;margin-bottom:6px}
+.pay-tabs button{
+  background:rgba(255,255,255,.03);border:1px solid var(--line);color:var(--ink-dim);
+  padding:6px 12px;border-radius:8px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
+}
+.pay-tabs button.active{background:rgba(77,101,255,.18);border-color:rgba(77,101,255,.45);color:var(--brand-3)}
+
+/* ---- GBP panel ---- */
+.gbp-panel{
+  background:linear-gradient(135deg, rgba(255,168,205,.08), rgba(77,101,255,.05));
+  border:1px solid rgba(255,168,205,.24);border-radius:var(--radius);
+  padding:18px 20px;margin:18px 0;
+}
+.gbp-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.gbp-head h3{margin:0;font-size:11px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.7px;font-weight:700}
+.gbp-head .spacer{flex:1}
+.gbp-head a.ext{
+  background:rgba(77,101,255,.18);border:1px solid rgba(77,101,255,.45);color:var(--brand-3);
+  padding:6px 12px;border-radius:8px;font-size:10.5px;font-weight:700;text-decoration:none;text-transform:uppercase;letter-spacing:.3px;
+}
+.gbp-head a.ext:hover{background:rgba(77,101,255,.28)}
+.gbp-body{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.gbp-stat{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:11.5px;color:var(--ink)}
+.gbp-stat .l{font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-dimmer);font-weight:700;margin-bottom:4px}
+.gbp-stat .rating{font-size:22px;font-weight:800;color:var(--warn);letter-spacing:-.3px}
+.gbp-stat .rating small{font-size:11px;color:var(--ink-dim);font-weight:600;margin-left:6px}
+.gbp-empty{color:var(--ink-dim);font-size:11.5px;padding:20px;text-align:center;border:1px dashed var(--line-2);border-radius:10px}
+
+/* Misc */
+.empty{text-align:center;color:var(--ink-dim);padding:40px;font-size:13px}
+.sm{font-size:11px;color:var(--ink-dim)}
+.spacer{height:14px}
+.risk-sigs{color:var(--ink-dim);font-size:10.5px}
+
+@media (max-width:1200px){
+  .kpis{grid-template-columns:repeat(3,1fr)}
+  .grid.c3{grid-template-columns:repeat(2,1fr)}
+  .controls{grid-template-columns:repeat(6,1fr)}
+  .controls .field[style*="span 6"]{grid-column:span 6 !important}
+  .controls .field[style*="span 3"]{grid-column:span 3 !important}
+  .controls .field[style*="span 2"]{grid-column:span 2 !important}
+}
+@media (max-width:1000px){
+  .pay-kpis{grid-template-columns:repeat(3,1fr)}
+  .pay-grid{grid-template-columns:1fr}
+  .gbp-body{grid-template-columns:1fr}
+}
+@media (max-width:720px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .grid.c2,.grid.c3{grid-template-columns:1fr}
+  .controls{grid-template-columns:1fr}
+  .controls .field[style*="span"]{grid-column:1 / -1 !important}
+  .detail-grid{grid-template-columns:1fr}
+  .mstat{grid-template-columns:repeat(2,1fr)}
+  .pay-kpis{grid-template-columns:repeat(2,1fr)}
+  .wrap{padding:14px 14px 60px}
+  .row-actions{justify-content:flex-start !important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">__LOGO_SVG__</div>
+    <div class="sep"></div>
+    <div class="title">Churn Intelligence<span>Live customer retention & communication analytics</span></div>
+  </div>
+  <div class="top-meta">
+    <span class="pill"><span class="dot"></span>Live</span>
+    <span class="pill">Refreshed <b id="genAt">—</b></span>
+    <span class="pill">Scope <b id="winPill">—</b></span>
+    <button class="btn pink" id="btnRefresh" title="Re-run the analyzer and publish fresh data">
+      <span class="btn-refresh-icon" aria-hidden="true">↻</span>
+      <span id="btnRefreshLbl">Refresh</span>
+    </button>
+  </div>
+</header>
+
+<!-- Refresh overlay modal -->
+<div class="rf-backdrop hidden" id="rfBackdrop">
+  <div class="rf-box" role="dialog" aria-labelledby="rfTitle">
+    <div class="rf-head">
+      <div class="rf-title" id="rfTitle">Refresh churn data</div>
+      <button class="rf-close" id="rfClose" aria-label="close">×</button>
+    </div>
+    <div class="rf-body" id="rfBody">
+      <p class="rf-p">
+        This will trigger a full live refresh: fetch BaseSheet, validate every churn
+        against Chargebee, re-run cause analysis, pull the latest comms, refresh
+        payment history and republish the dashboard.
+      </p>
+      <p class="rf-p rf-sub">Typical runtime: <b>4–6 minutes</b>. Your changes will appear automatically when the run completes.</p>
+      <div class="rf-pat-wrap">
+        <label class="rf-label" for="rfPat">GitHub personal access token <span class="rf-hint">(stored locally in this browser — never sent anywhere else)</span></label>
+        <input class="rf-input" id="rfPat" type="password" autocomplete="off" placeholder="ghp_…">
+        <div class="rf-pat-help">Needs <code>repo</code> + <code>workflow</code> scopes on <code>siranjt/zoca-churn-dashboard</code>. <a href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=Zoca%20Churn%20Dashboard%20Refresh" target="_blank" rel="noopener">Create one →</a></div>
+      </div>
+      <div class="rf-status" id="rfStatus"></div>
+    </div>
+    <div class="rf-foot">
+      <button class="btn" id="rfCancel">Cancel</button>
+      <button class="btn pink" id="rfGo">Trigger refresh</button>
+    </div>
+  </div>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="lbl">Churned (window)</div><div class="val" id="k_churned">—</div><div class="sub" id="k_churned_sub"></div></div>
+  <div class="kpi pink"><div class="lbl">ARR lost</div><div class="val" id="k_arr">—</div><div class="sub">MRR × 12</div></div>
+  <div class="kpi"><div class="lbl">Avg tenure at churn</div><div class="val" id="k_tenure">—</div><div class="sub">days</div></div>
+  <div class="kpi pink"><div class="lbl">At-risk (High)</div><div class="val" id="k_risk">—</div><div class="sub" id="k_risk_sub"></div></div>
+  <div class="kpi"><div class="lbl">Silent 30d+ at churn</div><div class="val" id="k_silent">—</div><div class="sub" id="k_silent_sub"></div></div>
+  <div class="kpi pink"><div class="lbl">High preventability</div><div class="val" id="k_prev">—</div><div class="sub" id="k_prev_sub">Would have been saveable</div></div>
+</div>
+
+<div class="controls">
+  <div class="field" style="grid-column:span 3">
+    <label>Churn month</label>
+    <div class="range-pills">
+      <button class="rp active" data-month="all">All (Feb+)</button>
+      <button class="rp" data-month="2026-02">Feb</button>
+      <button class="rp" data-month="2026-03">Mar</button>
+      <button class="rp" data-month="2026-04">Apr</button>
+    </div>
+  </div>
+  <div class="field" style="grid-column:span 2"><label>AM</label><select id="fAm"><option value="">All</option></select></div>
+  <div class="field" style="grid-column:span 2"><label>Category</label><select id="fCat"><option value="">All</option></select></div>
+  <div class="field" style="grid-column:span 2"><label>State</label><select id="fState"><option value="">All</option></select></div>
+  <div class="field" style="grid-column:span 3"><label>Lead source</label><select id="fLead"><option value="">All</option></select></div>
+  <div class="field" style="grid-column:span 6"><label>Search</label><input id="fSearch" placeholder="Business, AM, entity ID…"></div>
+  <div class="field" style="grid-column:span 6">
+    <label>&nbsp;</label>
+    <div class="row-actions" style="justify-content:flex-end">
+      <button class="btn" id="btnReset">Reset</button>
+      <button class="btn primary" id="btnCsv">Export CSV</button>
+      <button class="btn pink" id="btnXlsx">Export XLSX</button>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="overview">Overview</div>
+  <div class="tab" data-tab="cause">Root Cause <span class="count" id="cnt_cause">0</span></div>
+  <div class="tab" data-tab="churned">Churned <span class="count" id="cnt_churned">0</span></div>
+  <div class="tab" data-tab="risk">At-risk <span class="count" id="cnt_risk">0</span></div>
+  <div class="tab" data-tab="comms">Comms Insights</div>
+  <div class="tab" data-tab="retained">Retained <span class="count" id="cnt_retained">0</span></div>
+  <div class="tab" data-tab="am">AM Breakdown</div>
+</div>
+
+<!-- OVERVIEW -->
+<div class="panel" id="p_overview">
+  <div class="grid c2">
+    <div class="card">
+      <div class="hdr"><div class="ttl">Weekly churn (selected window)</div><div class="sub">Validated churn per ISO week</div></div>
+      <div class="chart-box"><canvas id="chWeekly"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="hdr"><div class="ttl">Monthly churn rate</div><div class="sub">Churned ÷ active at month start</div></div>
+      <div class="chart-box"><canvas id="chRate"></canvas></div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="grid c3">
+    <div class="card">
+      <div class="hdr"><div class="ttl">By AM</div><div class="sub">Top 10</div></div>
+      <div class="chart-box"><canvas id="chAm"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="hdr"><div class="ttl">Tenure buckets</div><div class="sub">Days active at churn</div></div>
+      <div class="chart-box"><canvas id="chTenure"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="hdr"><div class="ttl">Churn reason</div><div class="sub">Top 8</div></div>
+      <div class="chart-box"><canvas id="chReason"></canvas></div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="grid c3">
+    <div class="card">
+      <div class="hdr"><div class="ttl">By category</div><div class="sub">Top 10</div></div>
+      <div class="chart-box"><canvas id="chCat"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="hdr"><div class="ttl">By state</div><div class="sub">Top 10</div></div>
+      <div class="chart-box"><canvas id="chState"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="hdr"><div class="ttl">Lead source mix</div><div class="sub">Of churned cohort</div></div>
+      <div class="chart-box"><canvas id="chLead"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ROOT CAUSE -->
+<div class="panel hidden" id="p_cause">
+  <h2>Root cause analysis &nbsp;<span class="sm">· what caused each churn + how we could have prevented it</span></h2>
+
+  <div class="grid c3">
+    <div class="card">
+      <div class="hdr"><div class="ttl">Primary cause mix</div><div class="sub">Deterministic classification per customer</div></div>
+      <div class="chart-box"><canvas id="chCause"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="hdr"><div class="ttl">Preventability</div><div class="sub">Scoring 0-100 → High/Med/Low</div></div>
+      <div class="chart-box"><canvas id="chPrev"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="hdr"><div class="ttl">Action mix</div><div class="sub">Recommended intervention types</div></div>
+      <div class="chart-box"><canvas id="chRecs"></canvas></div>
+    </div>
+  </div>
+
+  <div class="spacer"></div>
+  <div class="grid c2">
+    <div class="card">
+      <div class="hdr"><div class="ttl">Cause breakdown · $ lost</div><div class="sub">ARR impact by root cause</div></div>
+      <table class="cause-tbl" id="causeTbl">
+        <thead><tr><th>Cause</th><th class="amt">Customers</th><th class="amt">MRR lost</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="hdr"><div class="ttl">Response-time health</div><div class="sub">Time between client → Zoca replies</div></div>
+      <div id="respHealth" style="padding:8px 4px"></div>
+    </div>
+  </div>
+
+  <div class="spacer"></div>
+  <div class="card">
+    <div class="hdr"><div class="ttl">High-preventability saves</div><div class="sub">Customers we likely could have retained — sorted by MRR impact</div></div>
+    <div id="prioritySaves" style="margin-top:6px"></div>
+  </div>
+</div>
+
+<!-- CHURNED TABLE -->
+<div class="panel hidden" id="p_churned">
+  <h2>Churned customers &nbsp;<span class="sm">· click a row for full history + cause analysis</span></h2>
+  <div class="tbl-wrap">
+    <table id="tblChurn">
+      <thead><tr>
+        <th data-k="biz_name">Business</th>
+        <th data-k="am">AM</th>
+        <th data-k="churn_date">Churn date</th>
+        <th data-k="tenure_days">Tenure</th>
+        <th data-k="mrr">MRR</th>
+        <th data-k="primary_cause_label">Primary cause</th>
+        <th data-k="preventability_score">Preventable</th>
+        <th data-k="days_silent_at_churn">Silent</th>
+        <th data-k="inbound_90d">In 90d</th>
+        <th data-k="median_response_days">Med. reply</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- AT-RISK -->
+<div class="panel hidden" id="p_risk">
+  <h2>At-risk active customers</h2>
+  <div class="tbl-wrap">
+    <table id="tblRisk">
+      <thead><tr>
+        <th data-k="biz_name">Business</th>
+        <th data-k="am">AM</th>
+        <th data-k="state">State</th>
+        <th data-k="risk_tier">Tier</th>
+        <th data-k="risk_score">Score</th>
+        <th data-k="mrr">MRR</th>
+        <th data-k="comms_30d">Comms 30d</th>
+        <th data-k="last_contact">Last contact</th>
+        <th>Signals</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- COMMS INSIGHTS -->
+<div class="panel hidden" id="p_comms">
+  <h2>Communication insights — churned customers</h2>
+  <div class="grid c2">
+    <div class="card">
+      <div class="hdr"><div class="ttl">Silence before churn</div><div class="sub">Days since last contact at churn date</div></div>
+      <div class="chart-box"><canvas id="chSilent"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="hdr"><div class="ttl">Communication decay</div><div class="sub">Last 4 weeks vs prior 8 weeks</div></div>
+      <div class="chart-box"><canvas id="chDecay"></canvas></div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="grid c2">
+    <div class="card">
+      <div class="hdr"><div class="ttl">Dominant channel (90d before churn)</div><div class="sub">Where did the last conversation happen?</div></div>
+      <div class="chart-box"><canvas id="chChannel"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="hdr"><div class="ttl">Avg weekly volume</div><div class="sub">Week 0 = churn week</div></div>
+      <div class="chart-box"><canvas id="chAvgWeekly"></canvas></div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="card">
+    <div class="hdr"><div class="ttl">Most frequent inbound keywords</div><div class="sub">Extracted from churned customer messages</div></div>
+    <div class="cloud" id="kwCloud"></div>
+  </div>
+</div>
+
+<!-- RETAINED -->
+<div class="panel hidden" id="p_retained">
+  <h2>Validated retained &nbsp;<span class="sm">· BaseSheet flagged churn, Chargebee still active</span></h2>
+  <div class="tbl-wrap">
+    <table id="tblRetain">
+      <thead><tr>
+        <th>Business</th><th>AM</th><th>Flagged churn date</th><th>Active subs</th><th>Statuses</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- AM -->
+<div class="panel hidden" id="p_am">
+  <h2>Account manager breakdown</h2>
+  <div class="tbl-wrap">
+    <table id="tblAm">
+      <thead><tr>
+        <th data-k="am">AM</th>
+        <th data-k="active">Active</th>
+        <th data-k="churned">Churned</th>
+        <th data-k="rate">Churn %</th>
+        <th data-k="arr">ARR lost</th>
+        <th data-k="risk_high">High risk</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+
+<!-- Modal -->
+<div class="modal-scrim" id="modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div>
+        <h2 id="m_name">—</h2>
+        <div class="sub" id="m_sub">—</div>
+      </div>
+      <button class="close" id="m_close" title="Close">×</button>
+    </div>
+    <div class="modal-body" id="m_body"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================ */
+/*  Zoca Churn Intelligence — frontend                          */
+/* ============================================================ */
+
+const DATA = __DATA__;
+Chart.defaults.font.family = "'Montserrat',system-ui,sans-serif";
+Chart.defaults.font.size = 11;
+Chart.defaults.color = '#a6abd4';
+Chart.defaults.borderColor = 'rgba(255,255,255,.08)';
+
+const BRAND = '#4d65ff', BRAND2 = '#8a9bff', PINK = '#ffa8cd', PINK2 = '#ff7ab2';
+const PALETTE = [BRAND, PINK, '#a78bfa', '#f472b6', '#60a5fa', '#34d399', '#fbbf24', '#f87171', '#22d3ee', '#c084fc'];
+
+const $ = id => document.getElementById(id);
+const fmt$ = n => '$' + Math.round(n||0).toLocaleString();
+const fmtD = s => s ? new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
+const pct = (n,d) => d ? (n/d*100).toFixed(1)+'%' : '—';
+const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const customers = DATA.customers || [];
+const retained = DATA.retained || [];
+const monthlyRate = DATA.monthly_rate || [];
+const commsInsights = DATA.comms_insights || {};
+const causeInsights = DATA.cause_insights || {};
+const filtersData = DATA.filters || {};
+const winMeta = DATA.window || {};
+
+$('genAt').textContent = DATA.generated_at || '—';
+$('winPill').textContent = (winMeta.validate_start || '') + ' → ' + (winMeta.validate_end || '');
+
+function fillSelect(id, arr){
+  const sel = $(id);
+  (arr||[]).forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o)});
+}
+fillSelect('fAm', filtersData.ams);
+fillSelect('fState', filtersData.states);
+fillSelect('fCat', filtersData.categories);
+fillSelect('fLead', filtersData.lead_sources);
+
+const state = {
+  tab: 'overview',
+  from: winMeta.default_start || '',
+  to: winMeta.default_end || '',
+  month: 'all',
+  am: '', state: '', cat: '', lead: '', q: '',
+  sort: {churn:{k:'churn_date', asc:false}, risk:{k:'risk_score', asc:false}, am:{k:'churned', asc:false}},
+};
+
+function inDate(d, from, to){
+  if (!d) return false;
+  if (from && d < from) return false;
+  if (to && d > to) return false;
+  return true;
+}
+function inMonth(d, month){
+  if (!month || month === 'all') return true;
+  return d && d.slice(0,7) === month;
+}
+function matchCommon(c){
+  if (state.am && c.am !== state.am) return false;
+  if (state.state && c.state !== state.state) return false;
+  if (state.cat && c.category !== state.cat) return false;
+  if (state.lead && c.lead_source !== state.lead) return false;
+  if (state.q){
+    const q = state.q.toLowerCase();
+    const blob = [c.biz_name,c.am,c.state,c.category,c.entity_id,c.customer_id].join(' ').toLowerCase();
+    if (blob.indexOf(q) === -1) return false;
+  }
+  return true;
+}
+function getChurned(){
+  return customers.filter(c => c.is_churned_validated && inMonth(c.churn_date, state.month) && matchCommon(c));
+}
+function getAtRisk(){
+  return customers.filter(c => !c.churn_date && (c.risk_score||0) >= 1 && matchCommon(c));
+}
+
+function computeKpis(){
+  const ch = getChurned();
+  $('k_churned').textContent = ch.length;
+  const lostArr = ch.reduce((s,c)=>s + (c.mrr||0)*12, 0);
+  $('k_arr').textContent = fmt$(lostArr);
+  const tenures = ch.map(c=>c.tenure_days).filter(x=>x>0);
+  $('k_tenure').textContent = tenures.length ? Math.round(tenures.reduce((a,b)=>a+b,0)/tenures.length) : '—';
+  const risky = customers.filter(c => !c.churn_date && c.risk_tier==='High' && matchCommon(c));
+  $('k_risk').textContent = risky.length;
+  $('k_risk_sub').textContent = customers.filter(c => !c.churn_date).length + ' active';
+  const silent = ch.filter(c => (c.days_silent_at_churn||0) >= 30).length;
+  $('k_silent').textContent = silent;
+  $('k_silent_sub').textContent = ch.length ? pct(silent, ch.length) : '—';
+  $('k_churned_sub').textContent = `of ${customers.length.toLocaleString()} customers`;
+
+  // High preventability: from filtered churned set
+  const highPrev = ch.filter(c => c.preventability_tier === 'High');
+  $('k_prev').textContent = highPrev.length;
+  const savableArr = highPrev.reduce((s,c)=>s + (c.mrr||0)*12, 0);
+  $('k_prev_sub').textContent = savableArr ? `${fmt$(savableArr)} ARR saveable` : 'Would have been saveable';
+
+  $('cnt_cause').textContent = ch.length;
+}
+
+const charts = {};
+function makeChart(id, cfg){
+  if (charts[id]) charts[id].destroy();
+  if (!$(id)) return;
+  charts[id] = new Chart($(id).getContext('2d'), cfg);
+}
+function gradient(ctx, c1, c2){
+  const g = ctx.createLinearGradient(0,0,0,240);
+  g.addColorStop(0, c1); g.addColorStop(1, c2);
+  return g;
+}
+
+function weeklySeries(ch){
+  const buckets = {};
+  ch.forEach(c=>{
+    if (!c.churn_date) return;
+    const d = new Date(c.churn_date);
+    const day = d.getUTCDay();
+    const monday = new Date(d); monday.setUTCDate(d.getUTCDate() - ((day+6)%7));
+    const k = monday.toISOString().slice(0,10);
+    buckets[k] = (buckets[k]||0) + 1;
+  });
+  const keys = Object.keys(buckets).sort();
+  return {labels: keys, data: keys.map(k=>buckets[k])};
+}
+function topN(items, keyFn, n=10){
+  const m = {};
+  items.forEach(i=>{const k = keyFn(i) || '—'; m[k] = (m[k]||0)+1});
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,n);
+}
+function tenureSeries(ch){
+  const b = {'<30':0,'30-90':0,'90-180':0,'180-365':0,'1-2y':0,'2y+':0};
+  ch.forEach(c=>{
+    const t = c.tenure_days||0;
+    if (t<30) b['<30']++; else if (t<90) b['30-90']++; else if (t<180) b['90-180']++;
+    else if (t<365) b['180-365']++; else if (t<730) b['1-2y']++; else b['2y+']++;
+  });
+  return {labels:Object.keys(b), data:Object.values(b)};
+}
+function renderOverview(){
+  const ch = getChurned();
+  const weekly = weeklySeries(ch);
+  const ctxW = $('chWeekly').getContext('2d');
+  makeChart('chWeekly', {
+    type:'bar',
+    data:{labels: weekly.labels, datasets:[{label:'Churned', data:weekly.data, backgroundColor: gradient(ctxW, 'rgba(255,168,205,.85)', 'rgba(77,101,255,.55)'), borderRadius:6, borderSkipped:false}]},
+    options:{plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{precision:0}}, x:{ticks:{maxRotation:0,autoSkip:true}}}, maintainAspectRatio:false}
+  });
+  makeChart('chRate',{
+    type:'line',
+    data:{labels:monthlyRate.map(m=>m.month), datasets:[
+      {label:'Churn rate %', data:monthlyRate.map(m=>m.rate), borderColor:BRAND, backgroundColor:'rgba(77,101,255,.18)', fill:true, tension:.35, pointRadius:3, pointBackgroundColor:PINK, borderWidth:2}
+    ]},
+    options:{plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{callback:v=>v+'%'}}}, maintainAspectRatio:false}
+  });
+  const am = topN(ch, c=>c.am);
+  makeChart('chAm', {type:'bar', data:{labels:am.map(a=>a[0]), datasets:[{data:am.map(a=>a[1]), backgroundColor:BRAND, borderRadius:5}]}, options:{indexAxis:'y', plugins:{legend:{display:false}}, maintainAspectRatio:false, scales:{x:{ticks:{precision:0}}}}});
+  const t = tenureSeries(ch);
+  makeChart('chTenure',{type:'bar', data:{labels:t.labels, datasets:[{data:t.data, backgroundColor:PINK, borderRadius:5}]}, options:{plugins:{legend:{display:false}}, maintainAspectRatio:false, scales:{y:{ticks:{precision:0}}}}});
+  const rs = topN(ch, c=>c.reason_category || 'Unknown', 8);
+  makeChart('chReason',{type:'doughnut', data:{labels:rs.map(r=>r[0]), datasets:[{data:rs.map(r=>r[1]), backgroundColor:PALETTE, borderWidth:0}]}, options:{plugins:{legend:{position:'right',labels:{boxWidth:10,padding:8}}}, maintainAspectRatio:false, cutout:'58%'}});
+  const cat = topN(ch, c=>c.category);
+  makeChart('chCat', {type:'bar', data:{labels:cat.map(a=>a[0]), datasets:[{data:cat.map(a=>a[1]), backgroundColor:BRAND2, borderRadius:5}]}, options:{indexAxis:'y', plugins:{legend:{display:false}}, maintainAspectRatio:false, scales:{x:{ticks:{precision:0}}}}});
+  const st = topN(ch, c=>c.state);
+  makeChart('chState',{type:'bar', data:{labels:st.map(a=>a[0]), datasets:[{data:st.map(a=>a[1]), backgroundColor:PINK2, borderRadius:5}]}, options:{indexAxis:'y', plugins:{legend:{display:false}}, maintainAspectRatio:false, scales:{x:{ticks:{precision:0}}}}});
+  const ls = topN(ch, c=>c.lead_source, 8);
+  makeChart('chLead',{type:'doughnut', data:{labels:ls.map(l=>l[0]), datasets:[{data:ls.map(l=>l[1]), backgroundColor:PALETTE, borderWidth:0}]}, options:{plugins:{legend:{position:'right',labels:{boxWidth:10,padding:8}}}, maintainAspectRatio:false, cutout:'58%'}});
+}
+
+function renderCommsInsights(){
+  const sb = commsInsights.silent_buckets || {};
+  const sbLabels = Object.keys(sb);
+  makeChart('chSilent',{type:'bar', data:{labels:sbLabels, datasets:[{data:sbLabels.map(k=>sb[k]), backgroundColor:PINK, borderRadius:6}]}, options:{plugins:{legend:{display:false}}, maintainAspectRatio:false, scales:{y:{ticks:{precision:0}}}}});
+
+  const db = commsInsights.decay_buckets || {};
+  const dbLabels = Object.keys(db);
+  makeChart('chDecay',{type:'bar', data:{labels:dbLabels, datasets:[{data:dbLabels.map(k=>db[k]), backgroundColor:['#4ade80','#fbbf24','#fb923c','#f87171','#6b719a'], borderRadius:6}]}, options:{plugins:{legend:{display:false}}, maintainAspectRatio:false, scales:{y:{ticks:{precision:0}}}}});
+
+  const ch = commsInsights.channel_histogram || {};
+  const chLabels = Object.keys(ch);
+  makeChart('chChannel',{type:'doughnut', data:{labels:chLabels, datasets:[{data:chLabels.map(k=>ch[k]), backgroundColor:PALETTE, borderWidth:0}]}, options:{plugins:{legend:{position:'right',labels:{boxWidth:10,padding:8}}}, maintainAspectRatio:false, cutout:'55%'}});
+
+  const wv = commsInsights.avg_weekly_volume || [];
+  const weekLabels = wv.map((_,i)=>`W-${i}`).reverse();
+  const wvRev = [...wv].reverse();
+  makeChart('chAvgWeekly',{type:'line', data:{labels:weekLabels, datasets:[{data:wvRev, borderColor:BRAND, backgroundColor:'rgba(77,101,255,.18)', fill:true, tension:.35, pointRadius:3, pointBackgroundColor:PINK, borderWidth:2, label:'Avg msgs/wk'}]}, options:{plugins:{legend:{display:false}}, maintainAspectRatio:false, scales:{y:{beginAtZero:true}}}});
+
+  const cloud = $('kwCloud'); cloud.innerHTML = '';
+  const kws = commsInsights.top_keywords || [];
+  if (!kws.length){ cloud.innerHTML = '<div class="sm">No keywords found.</div>'; return; }
+  const maxN = Math.max(...kws.map(k=>k[1]));
+  kws.forEach(([w,n])=>{
+    const size = 10 + (n/maxN) * 8;
+    const el = document.createElement('span'); el.className = 'w';
+    el.style.fontSize = size.toFixed(1)+'px';
+    el.textContent = `${w} · ${n}`;
+    cloud.appendChild(el);
+  });
+}
+
+function sortRows(rows, sort){
+  const {k, asc} = sort;
+  return [...rows].sort((a,b)=>{
+    let av = a[k], bv = b[k];
+    if (av == null) av = asc ? Infinity : -Infinity;
+    if (bv == null) bv = asc ? Infinity : -Infinity;
+    if (typeof av === 'string') av = av.toLowerCase();
+    if (typeof bv === 'string') bv = bv.toLowerCase();
+    return asc ? (av > bv ? 1 : av < bv ? -1 : 0) : (av < bv ? 1 : av > bv ? -1 : 0);
+  });
+}
+
+function tierBadge(t){
+  if (t==='High') return '<span class="badge b-high">High</span>';
+  if (t==='Medium') return '<span class="badge b-med">Medium</span>';
+  if (t==='Low') return '<span class="badge b-low">Low</span>';
+  if (t==='Churned') return '<span class="badge b-brand">Churned</span>';
+  return '<span class="badge b-none">'+esc(t||'—')+'</span>';
+}
+
+/* ---- Cause label map (mirror of CAUSE_LABELS in python) ---- */
+const CAUSE_COLORS = {
+  explicit_cancellation:'#f87171', results_failure:'#fb923c', competitive_switch:'#f472b6',
+  service_complaint:'#fbbf24', billing_breakdown:'#a78bfa', ghost_churn:'#6b719a',
+  expectation_gap:'#60a5fa', silent_drift:'#4d65ff', reactive_fade:'#22d3ee', unknown:'#a6abd4'
+};
+
+function renderCauseTab(){
+  const ch = getChurned();
+  // Recompute cause aggregates from the currently filtered set so month filters apply.
+  const causeCounts = {};
+  const causeMrr = {};
+  const prevCounts = {High:0, Medium:0, Low:0};
+  const recCounts = {};
+  let medResps = [];
+  let ignoredTotal = 0;
+  let sampleTotal = 0;
+
+  ch.forEach(c=>{
+    const cause = c.primary_cause || 'unknown';
+    causeCounts[cause] = (causeCounts[cause]||0) + 1;
+    causeMrr[cause] = (causeMrr[cause]||0) + (c.mrr||0);
+    if (c.preventability_tier) prevCounts[c.preventability_tier] = (prevCounts[c.preventability_tier]||0) + 1;
+    if (typeof c.median_response_days === 'number') medResps.push(c.median_response_days);
+    if (typeof c.ignored_inbound_count === 'number') ignoredTotal += c.ignored_inbound_count;
+  });
+
+  // Recommendation tag counts come from global causeInsights (already aggregated).
+  (causeInsights.top_recommendation_tags || []).forEach(([tag, n])=> recCounts[tag] = n);
+
+  // --- Chart: Primary cause mix (doughnut) ---
+  const causeLabels = Object.keys(causeCounts).sort((a,b)=>causeCounts[b]-causeCounts[a]);
+  const causeData = causeLabels.map(k=>causeCounts[k]);
+  const causeBgs = causeLabels.map(k=>CAUSE_COLORS[k] || '#a6abd4');
+  const causeLabelsPretty = causeLabels.map(k=>{
+    // Find label from any churned customer matching this cause.
+    const match = ch.find(c=>c.primary_cause===k);
+    return match ? (match.primary_cause_label || k) : k;
+  });
+  makeChart('chCause',{
+    type:'doughnut',
+    data:{labels: causeLabelsPretty, datasets:[{data:causeData, backgroundColor:causeBgs, borderWidth:0}]},
+    options:{plugins:{legend:{position:'right',labels:{boxWidth:10,padding:8,font:{size:10.5}}}}, maintainAspectRatio:false, cutout:'58%'}
+  });
+
+  // --- Chart: Preventability ---
+  makeChart('chPrev',{
+    type:'doughnut',
+    data:{labels:['High','Medium','Low'], datasets:[{data:[prevCounts.High||0, prevCounts.Medium||0, prevCounts.Low||0], backgroundColor:['#4ade80','#fbbf24','#6b719a'], borderWidth:0}]},
+    options:{plugins:{legend:{position:'right',labels:{boxWidth:10,padding:8}}}, maintainAspectRatio:false, cutout:'58%'}
+  });
+
+  // --- Chart: Action mix ---
+  const recEntries = Object.entries(recCounts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  makeChart('chRecs',{
+    type:'bar',
+    data:{labels:recEntries.map(r=>r[0]), datasets:[{data:recEntries.map(r=>r[1]), backgroundColor:PINK, borderRadius:5}]},
+    options:{indexAxis:'y', plugins:{legend:{display:false}}, maintainAspectRatio:false, scales:{x:{ticks:{precision:0}}}}
+  });
+
+  // --- Cause breakdown table ---
+  const ctb = document.querySelector('#causeTbl tbody'); ctb.innerHTML = '';
+  causeLabels.forEach((k, i)=>{
+    const lbl = causeLabelsPretty[i];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${causeBadge(k, lbl)}</td><td class="amt">${causeCounts[k]}</td><td class="amt">${fmt$(causeMrr[k]*12)} <span class="sm">ARR</span></td>`;
+    ctb.appendChild(tr);
+  });
+
+  // --- Response health text block ---
+  medResps.sort((a,b)=>a-b);
+  const median = medResps.length ? medResps[Math.floor(medResps.length/2)] : null;
+  const slow = medResps.filter(x=>x>=3).length;
+  const fast = medResps.filter(x=>x<1).length;
+  const ignoredRate = causeInsights.ignored_inbound_rate_pct || 0;
+  $('respHealth').innerHTML = `
+    <div class="mstat" style="grid-template-columns:repeat(2,1fr);margin-bottom:12px">
+      <div class="b"><div class="l">Median reply time</div><div class="v">${median != null ? median + 'd' : '—'}</div></div>
+      <div class="b"><div class="l">Ignored inbound rate</div><div class="v">${ignoredRate}%</div></div>
+      <div class="b"><div class="l">Slow replies (≥3d)</div><div class="v">${slow}</div><div class="l" style="margin-top:4px">${medResps.length?pct(slow, medResps.length):'—'} of churned</div></div>
+      <div class="b"><div class="l">Fast replies (&lt;1d)</div><div class="v">${fast}</div><div class="l" style="margin-top:4px">${medResps.length?pct(fast, medResps.length):'—'} of churned</div></div>
+    </div>
+    <div class="sm" style="padding:10px 12px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;line-height:1.55">
+      <b style="color:var(--pink)">${causeInsights.ignored_inbound_total || 0}</b> client messages went unanswered for 5+ days out of
+      <b style="color:var(--pink)">${causeInsights.sample_inbound_total || 0}</b> total inbound. Faster response = higher retention.
+    </div>
+  `;
+
+  // --- Priority saves list ---
+  const saves = (causeInsights.priority_saves || []).filter(s => inMonth(s.churn_date, state.month));
+  const psEl = $('prioritySaves');
+  if (!saves.length){
+    psEl.innerHTML = '<div class="empty">No high-preventability customers in this window.</div>';
+  } else {
+    psEl.innerHTML = saves.map(s=>`
+      <div class="priority-save" data-eid="${esc(s.entity_id||'')}">
+        <div class="ps-hdr">
+          <div>
+            <div class="ps-biz">${esc(s.biz_name||'—')}</div>
+            <div class="ps-meta">${esc(s.am||'—')} · Churned ${fmtD(s.churn_date)}${s.turning_point_date?' · Turning point '+fmtD(s.turning_point_date):''}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="ps-amt">${fmt$((s.mrr||0)*12)} <span class="sm" style="color:var(--ink-dim)">ARR</span></div>
+            <div style="margin-top:4px">${causeBadge(s.primary_cause, s.primary_cause_label)} ${prevBadge('High', s.preventability_score)}</div>
+          </div>
+        </div>
+        <div class="ps-narr">${esc(s.narrative||'')}</div>
+        <div class="ps-recs">${(s.top_recommendations||[]).map(r=>`<div class="ps-rec">${esc(r)}</div>`).join('')}</div>
+      </div>
+    `).join('');
+    // Click-through: open modal for the corresponding customer
+    document.querySelectorAll('.priority-save').forEach(el=>{
+      el.onclick = ()=>{
+        const eid = el.dataset.eid;
+        const cust = customers.find(c=>c.entity_id===eid);
+        if (cust) openModal(cust);
+      };
+    });
+  }
+}
+
+function causeBadge(cause, label){
+  if (!cause) return '<span class="cause-badge unknown">—</span>';
+  return `<span class="cause-badge ${esc(cause)}">${esc(label || cause)}</span>`;
+}
+function prevBadge(tier, score){
+  if (!tier) return '<span class="prev-badge Low">—</span>';
+  const s = score != null ? ` ${score}` : '';
+  return `<span class="prev-badge ${esc(tier)}">${esc(tier)}${s}</span>`;
+}
+
+function renderChurnedTable(){
+  const rows = sortRows(getChurned(), state.sort.churn);
+  $('cnt_churned').textContent = rows.length;
+  const tb = document.querySelector('#tblChurn tbody');
+  tb.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  rows.forEach(c=>{
+    const tr = document.createElement('tr');
+    const medR = c.median_response_days;
+    const medStr = medR == null ? '—' : medR + 'd';
+    const medStyle = medR != null && medR >= 3 ? 'color:#fca5a5' : (medR != null && medR < 1 ? 'color:#86efac' : '');
+    tr.innerHTML = `
+      <td class="biz">${esc(c.biz_name||'—')}<div class="sm">${esc(c.state||'')}${c.category?' · '+esc(c.category):''}</div></td>
+      <td>${esc(c.am||'—')}</td>
+      <td>${fmtD(c.churn_date)}</td>
+      <td class="amt">${c.tenure_days||0}d</td>
+      <td class="amt">${fmt$(c.mrr||0)}</td>
+      <td>${causeBadge(c.primary_cause, c.primary_cause_label)}</td>
+      <td>${prevBadge(c.preventability_tier, c.preventability_score)}</td>
+      <td class="amt">${c.days_silent_at_churn==null?'—':c.days_silent_at_churn+'d'}</td>
+      <td class="amt">${c.inbound_90d||0}</td>
+      <td class="amt" style="${medStyle}">${medStr}</td>`;
+    tr.onclick = ()=>openModal(c);
+    frag.appendChild(tr);
+  });
+  tb.appendChild(frag);
+  updateHeaderSort('tblChurn', state.sort.churn);
+}
+
+function renderRiskTable(){
+  const rows = sortRows(getAtRisk(), state.sort.risk);
+  $('cnt_risk').textContent = rows.length;
+  const tb = document.querySelector('#tblRisk tbody');
+  tb.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  rows.forEach(c=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="biz">${esc(c.biz_name||'—')}</td>
+      <td>${esc(c.am||'—')}</td>
+      <td class="dim">${esc(c.state||'—')}</td>
+      <td>${tierBadge(c.risk_tier)}</td>
+      <td class="amt">${c.risk_score||0}</td>
+      <td class="amt">${fmt$(c.mrr||0)}</td>
+      <td class="amt">${c.comms_30d||0}</td>
+      <td>${fmtD(c.last_contact)}</td>
+      <td class="risk-sigs">${(c.risk_signals||[]).map(esc).join(' · ')}</td>`;
+    frag.appendChild(tr);
+  });
+  tb.appendChild(frag);
+  updateHeaderSort('tblRisk', state.sort.risk);
+}
+
+function renderRetained(){
+  const tb = document.querySelector('#tblRetain tbody'); tb.innerHTML = '';
+  $('cnt_retained').textContent = retained.length;
+  retained.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="biz">${esc(r.biz_name||'—')}</td><td>${esc(r.am||'—')}</td><td>${fmtD(r.churn_date)}</td><td class="amt">${r.active_sub_count||0}</td><td class="dim">${esc(r.statuses||'')}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function renderAm(){
+  const windowChurned = getChurned();
+  const active = customers.filter(c=>!c.churn_date);
+  const amMap = {};
+  active.forEach(c=>{const k = c.am||'Unassigned'; amMap[k] = amMap[k] || {am:k, active:0, churned:0, arr:0, risk_high:0}; amMap[k].active++; if(c.risk_tier==='High') amMap[k].risk_high++;});
+  windowChurned.forEach(c=>{const k = c.am||'Unassigned'; amMap[k] = amMap[k] || {am:k, active:0, churned:0, arr:0, risk_high:0}; amMap[k].churned++; amMap[k].arr += (c.mrr||0)*12;});
+  let rows = Object.values(amMap);
+  rows.forEach(r=>{r.rate = r.active+r.churned>0 ? r.churned/(r.active+r.churned)*100 : 0});
+  rows = sortRows(rows, state.sort.am);
+  const tb = document.querySelector('#tblAm tbody'); tb.innerHTML = '';
+  rows.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="biz">${esc(r.am)}</td><td class="amt">${r.active}</td><td class="amt">${r.churned}</td><td class="amt">${r.rate.toFixed(1)}%</td><td class="amt">${fmt$(r.arr)}</td><td class="amt">${r.risk_high}</td>`;
+    tb.appendChild(tr);
+  });
+  updateHeaderSort('tblAm', state.sort.am);
+}
+
+function updateHeaderSort(tblId, sort){
+  document.querySelectorAll(`#${tblId} thead th`).forEach(th=>{
+    th.classList.remove('sorted','asc');
+    if (th.dataset.k === sort.k){
+      th.classList.add('sorted');
+      if (sort.asc) th.classList.add('asc');
+    }
+  });
+}
+function bindSort(tblId, key){
+  document.querySelectorAll(`#${tblId} thead th[data-k]`).forEach(th=>{
+    th.onclick = ()=>{
+      const s = state.sort[key];
+      if (s.k === th.dataset.k) s.asc = !s.asc;
+      else { s.k = th.dataset.k; s.asc = false; }
+      if (key==='churn') renderChurnedTable();
+      else if (key==='risk') renderRiskTable();
+      else if (key==='am') renderAm();
+    };
+  });
+}
+bindSort('tblChurn','churn'); bindSort('tblRisk','risk'); bindSort('tblAm','am');
+
+/* ---- Modal (lazy-fetch per-customer comms JSON) ---- */
+const modalEl = $('modal');
+const commsCache = {};
+
+async function openModal(c){
+  modalEl.classList.add('open');
+  $('m_name').textContent = c.biz_name || '—';
+  $('m_sub').textContent = `${c.am||'—'} · ${c.state||'—'} · ${c.category||'—'} · Churned ${fmtD(c.churn_date)}`;
+  const body = $('m_body');
+  body.innerHTML = `<div class="modal-loading"><div class="spinner"></div>Loading communication history…</div>`;
+  const eid = c.entity_id;
+  if (!eid){ renderModalBody(c, null, 'No entity_id on record'); return; }
+  try {
+    let data;
+    if (commsCache[eid]) data = commsCache[eid];
+    else {
+      const res = await fetch(`data/comms/${eid}.json`, {cache:'no-store'});
+      if (!res.ok) throw new Error('HTTP '+res.status);
+      data = await res.json();
+      commsCache[eid] = data;
+    }
+    renderModalBody(c, data);
+  } catch (err){
+    renderModalBody(c, null, err.message);
+  }
+}
+
+function renderModalBody(c, data, err){
+  const a = (data && data.analytics) || {};
+  const msgs = (data && data.messages) || [];
+  const ca = (data && data.cause_analysis) || {};
+  const body = $('m_body');
+  const dec = a.decay_pct;
+  const decText = dec == null ? '—' : ((dec>0?'+':'') + dec + '%');
+
+  // --- Build Why-this-happened panel ---
+  let whyHTML = '';
+  if (ca && ca.primary_cause){
+    const tp = ca.turning_point || null;
+    const sigs = (ca.signals || []).slice().sort((x,y)=>(x.date||'').localeCompare(y.date||''));
+    const recs = ca.recommendations || [];
+    const rs = ca.response_stats || {};
+    const rsBits = [];
+    if (rs.median_days != null) rsBits.push(`Median reply <b>${rs.median_days}d</b>`);
+    if (rs.ignored_count) rsBits.push(`<b>${rs.ignored_count}</b> ignored inbound`);
+    if (rs.sample_count) rsBits.push(`${rs.sample_count} inbound sampled`);
+
+    whyHTML = `
+      <div class="why-panel">
+        <div class="why-head">
+          <h3>Why this churned</h3>
+          ${causeBadge(ca.primary_cause, ca.primary_cause_label)}
+          ${prevBadge(ca.preventability_tier, ca.preventability_score)}
+          ${rsBits.length?`<span class="sm" style="color:var(--ink-dim);margin-left:auto">${rsBits.join(' · ')}</span>`:''}
+        </div>
+        <div class="why-narr">${esc(ca.narrative||'—')}</div>
+        ${tp ? `<div class="turning">🎯 Turning point: <b>${fmtD(tp.date)}</b> — ${esc(tp.type||'').replace(/_/g,' ')}${tp.detail?' · '+esc(tp.detail):''}</div>` : ''}
+        ${sigs.length ? `
+          <h3 style="margin-top:6px;margin-bottom:8px">Signals we had</h3>
+          <ul class="sig-list">
+            ${sigs.map(s=>`<li><span class="d">${fmtD(s.date)}</span><span class="t">${esc((s.type||'').replace(/_/g,' '))}</span><span class="x">${esc(s.detail||s.snippet||'')}</span></li>`).join('')}
+          </ul>` : ''}
+        ${recs.length ? `
+          <h3 style="margin-top:6px;margin-bottom:8px">How we could have prevented it</h3>
+          <ul class="rec-list">
+            ${recs.map(r=>{
+              const m = typeof r === 'string' ? r.match(/^\[([^\]]+)\]\s*(.+)$/) : null;
+              if (m) return `<li><span class="tag">${esc(m[1])}</span>${esc(m[2])}</li>`;
+              return `<li>${esc(r)}</li>`;
+            }).join('')}
+          </ul>` : ''}
+      </div>
+    `;
+  }
+
+  body.innerHTML = whyHTML + `
+    <div class="mstat">
+      <div class="b"><div class="l">MRR</div><div class="v">${fmt$(c.mrr||0)}</div></div>
+      <div class="b"><div class="l">Tenure</div><div class="v">${c.tenure_days||0}d</div></div>
+      <div class="b"><div class="l">Silent at churn</div><div class="v">${a.days_silent_at_churn==null?'—':a.days_silent_at_churn+'d'}</div></div>
+      <div class="b"><div class="l">Decay</div><div class="v">${decText}</div></div>
+      <div class="b"><div class="l">Inbound 90d</div><div class="v">${a.inbound_90d||0}</div></div>
+      <div class="b"><div class="l">Outbound 90d</div><div class="v">${a.outbound_90d||0}</div></div>
+      <div class="b"><div class="l">Dominant channel</div><div class="v small">${esc(a.dominant_channel_90d||'—')}</div></div>
+      <div class="b"><div class="l">Messages</div><div class="v">${a.message_count_total||0}</div></div>
+    </div>
+
+    <div class="detail-grid">
+      <div>
+        <h3>Customer details</h3>
+        <dl class="dl">
+          <dt>Entity ID</dt><dd>${esc(c.entity_id||'—')}</dd>
+          <dt>Customer ID</dt><dd>${esc(c.customer_id||'—')}</dd>
+          <dt>AM</dt><dd>${esc(c.am||'—')}</dd>
+          <dt>AE</dt><dd>${esc(c.ae||'—')}</dd>
+          <dt>State</dt><dd>${esc(c.state||'—')}</dd>
+          <dt>Category</dt><dd>${esc(c.category||'—')}</dd>
+          <dt>Lead source</dt><dd>${esc(c.lead_source||'—')}</dd>
+          <dt>First paid</dt><dd>${fmtD(c.first_payment_date)}</dd>
+          <dt>Churn date</dt><dd>${fmtD(c.churn_date)}</dd>
+          <dt>Reason</dt><dd>${esc(c.reason_category||'—')}${c.detailed_reason?' · '+esc(c.detailed_reason):''}</dd>
+          <dt>Phone</dt><dd>${esc(c.phone_number||'—')}</dd>
+          <dt>Email</dt><dd>${esc(c.app_email||c.gbp_email||'—')}</dd>
+        </dl>
+      </div>
+      <div>
+        <h3>Risk signals</h3>
+        <dl class="dl">
+          <dt>Missed M0</dt><dd>${c.missed_m0?fmt$(c.missed_m0):'—'}</dd>
+          <dt>Missed M-1</dt><dd>${c.missed_m1?fmt$(c.missed_m1):'—'}</dd>
+          <dt>Missed M-2</dt><dd>${c.missed_m2?fmt$(c.missed_m2):'—'}</dd>
+          <dt>Potential</dt><dd>${esc(c.churn_potential_status||'—')}</dd>
+          <dt>Unresolved</dt><dd>${c.unresolved_issues||0}</dd>
+          <dt>Longest gap</dt><dd>${a.longest_gap_90d==null?'—':a.longest_gap_90d+'d'}</dd>
+          <dt>Last inbound</dt><dd>${fmtD(a.last_inbound_date)}${a.last_inbound_channel?' · '+esc(a.last_inbound_channel):''}</dd>
+        </dl>
+        ${a.last_inbound_snippet ? `<div style="margin-top:10px;padding:10px 12px;background:rgba(255,168,205,.08);border:1px solid rgba(255,168,205,.25);border-radius:10px;font-size:11.5px;font-style:italic">"${esc(a.last_inbound_snippet)}"</div>`:''}
+        ${a.top_keywords && a.top_keywords.length ? `<div class="kw" style="margin-top:12px">${a.top_keywords.map(w=>`<span>${esc(w)}</span>`).join('')}</div>` : ''}
+      </div>
+    </div>
+
+    ${renderPaymentPanel(c, data)}
+    ${renderGbpPanel(c, data)}
+
+    <h3>Communication timeline${msgs.length?` · last ${msgs.length} messages`:''}</h3>
+    ${err ? `<div class="tline-empty">Could not load comms history: ${esc(err)}</div>` :
+      (msgs.length === 0 ? `<div class="tline-empty">No messages on record.</div>` :
+        `<div class="timeline">${msgs.map(m=>`
+          <div class="msg ${m.direction}">
+            <div class="mhdr">
+              <span>${fmtD(m.date)} · ${esc(m.channel)}${m.sender?' · '+esc(m.sender):''}</span>
+              <span class="right"><span class="dir-pill ${m.direction}">${m.direction==='in'?'client → zoca':m.direction==='out'?'zoca → client':'—'}</span></span>
+            </div>
+            <div class="body">${esc(m.body||'')}</div>
+          </div>`).join('')}</div>`)}
+  `;
+
+  // Mount interactive payment panel after HTML is in the DOM
+  mountPaymentPanel(c, data);
+  mountGbpPanel(c, data);
+}
+
+/* ---------- Payment panel ---------- */
+function renderPaymentPanel(c, data){
+  const ph = data && data.payment_history;
+  if (!ph || (!ph.summary && !ph.invoices && !ph.transactions && !ph.error)) {
+    return `<div class="pay-panel">
+      <div class="pay-head"><h3>Payment history</h3><div class="spacer"></div>
+      <span class="err">No payment data on record</span></div></div>`;
+  }
+  if (ph.error){
+    return `<div class="pay-panel">
+      <div class="pay-head"><h3>Payment history</h3><div class="spacer"></div>
+      <span class="err">${esc(ph.error)}</span></div></div>`;
+  }
+  const s = ph.summary || {};
+  const sigs = ph.signals || [];
+  const fmt0 = (v)=> v==null?'—':'$'+Number(v).toLocaleString('en-US',{maximumFractionDigits:0});
+
+  const outClass = (s.outstanding_balance||0) > 0 ? 'bad' : 'ok';
+  const failClass = (s.failed_payment_count||0) >= 3 ? 'bad' : (s.failed_payment_count||0) > 0 ? 'warn' : '';
+  const avgClass = s.avg_days_to_pay != null && s.avg_days_to_pay >= 7 ? 'warn' : '';
+
+  return `
+    <div class="pay-panel">
+      <div class="pay-head">
+        <h3>Payment history</h3>
+        <div class="spacer"></div>
+        <span class="sm">${s.first_invoice_date||'—'} → ${s.last_invoice_date||'—'}</span>
+      </div>
+      <div class="pay-kpis">
+        <div class="b"><div class="l">Lifetime paid</div><div class="v ok">${fmt0(s.lifetime_paid)}</div></div>
+        <div class="b"><div class="l">Outstanding</div><div class="v ${outClass}">${fmt0(s.outstanding_balance)}</div></div>
+        <div class="b"><div class="l">Invoices</div><div class="v">${(s.paid_invoice_count||0)}/${(s.invoice_count||0)} paid</div></div>
+        <div class="b"><div class="l">Failed payments</div><div class="v ${failClass}">${s.failed_payment_count||0}</div></div>
+        <div class="b"><div class="l">Avg days late</div><div class="v ${avgClass}">${s.avg_days_to_pay==null?'—':s.avg_days_to_pay+'d'}</div></div>
+      </div>
+
+      <div class="pay-grid">
+        <div class="pay-chart-wrap">
+          <canvas id="payChart_${esc(c.entity_id||'x')}"></canvas>
+        </div>
+        <div class="pay-signals">
+          ${sigs.length ? sigs.map(sg=>`
+            <div class="sig">
+              <span class="sev ${esc(sg.severity||'low')}">${esc(sg.severity||'low')}</span>
+              <span class="t">${esc((sg.type||'').replace(/_/g,' '))}</span>
+              <span class="x">${esc(sg.detail||'')}</span>
+            </div>`).join('') : `<div class="empty-sig">No payment red flags detected.</div>`}
+        </div>
+      </div>
+
+      <div class="pay-tabs">
+        <button class="active" data-pt="inv" onclick="switchPayTab('${esc(c.entity_id||'x')}','inv')">Invoices (${(ph.invoices||[]).length})</button>
+        <button data-pt="tx" onclick="switchPayTab('${esc(c.entity_id||'x')}','tx')">Transactions (${(ph.transactions||[]).length})</button>
+        <button data-pt="sub" onclick="switchPayTab('${esc(c.entity_id||'x')}','sub')">Subscriptions (${(ph.subscriptions||[]).length})</button>
+      </div>
+
+      <div id="payTab_inv_${esc(c.entity_id||'x')}" class="pay-tbl-wrap">
+        ${renderInvTable(ph.invoices || [])}
+      </div>
+      <div id="payTab_tx_${esc(c.entity_id||'x')}" class="pay-tbl-wrap" style="display:none">
+        ${renderTxTable(ph.transactions || [])}
+      </div>
+      <div id="payTab_sub_${esc(c.entity_id||'x')}" class="pay-tbl-wrap" style="display:none">
+        ${renderSubTable(ph.subscriptions || [])}
+      </div>
+    </div>`;
+}
+
+function renderInvTable(invs){
+  if (!invs.length) return `<div class="empty-sig" style="padding:12px">No invoices.</div>`;
+  const rows = invs.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(i=>`
+    <tr>
+      <td>${esc(i.id||'—')}</td>
+      <td><span class="pill-s ${esc(i.status||'')}">${esc(i.status||'—')}</span></td>
+      <td>${esc(i.date||'—')}</td>
+      <td>${esc(i.due_date||'—')}</td>
+      <td>${esc(i.paid_at||'—')}</td>
+      <td class="num">$${(i.total||0).toFixed(2)}</td>
+      <td class="num">$${(i.amount_paid||0).toFixed(2)}</td>
+      <td class="num">$${(i.amount_due||0).toFixed(2)}</td>
+    </tr>`).join('');
+  return `<table class="pay-tbl">
+    <thead><tr><th>Invoice</th><th>Status</th><th>Date</th><th>Due</th><th>Paid</th><th>Total</th><th>Paid amt</th><th>Due amt</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+function renderTxTable(txs){
+  if (!txs.length) return `<div class="empty-sig" style="padding:12px">No transactions.</div>`;
+  const rows = txs.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(t=>`
+    <tr>
+      <td>${esc(t.id||'—')}</td>
+      <td>${esc(t.type||'—')}</td>
+      <td><span class="pill-s ${esc(t.status||'')}">${esc(t.status||'—')}</span></td>
+      <td>${esc(t.date||'—')}</td>
+      <td>${esc(t.payment_method||'—')}</td>
+      <td>${esc(t.gateway||'—')}</td>
+      <td class="num">$${(t.amount||0).toFixed(2)}</td>
+      <td>${esc(t.error_text||'')}</td>
+    </tr>`).join('');
+  return `<table class="pay-tbl">
+    <thead><tr><th>ID</th><th>Type</th><th>Status</th><th>Date</th><th>Method</th><th>Gateway</th><th>Amount</th><th>Error</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+function renderSubTable(subs){
+  if (!subs.length) return `<div class="empty-sig" style="padding:12px">No subscriptions.</div>`;
+  const rows = subs.slice().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||'')).map(s=>`
+    <tr>
+      <td>${esc(s.id||'—')}</td>
+      <td>${esc(s.plan_id||'—')}</td>
+      <td><span class="pill-s ${esc(s.status||'')}">${esc(s.status||'—')}</span></td>
+      <td class="num">$${(s.mrr||0).toFixed(2)}</td>
+      <td>${esc(s.started_at||'—')}</td>
+      <td>${esc(s.cancelled_at||'—')}</td>
+      <td>${esc(s.auto_collection||'—')}</td>
+      <td>${esc(s.cancel_reason||s.cancel_reason_code||'—')}</td>
+    </tr>`).join('');
+  return `<table class="pay-tbl">
+    <thead><tr><th>ID</th><th>Plan</th><th>Status</th><th>MRR</th><th>Started</th><th>Cancelled</th><th>Collection</th><th>Reason</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+function switchPayTab(eid, which){
+  ['inv','tx','sub'].forEach(k=>{
+    const el = document.getElementById(`payTab_${k}_${eid}`);
+    if (el) el.style.display = (k === which ? '' : 'none');
+  });
+  document.querySelectorAll('.pay-tabs button').forEach(b=>{
+    if (b.getAttribute('data-pt') === which) b.classList.add('active');
+    else b.classList.remove('active');
+  });
+}
+
+function mountPaymentPanel(c, data){
+  const ph = data && data.payment_history;
+  if (!ph || ph.error || !ph.monthly_paid || !ph.monthly_paid.length) return;
+  const id = `payChart_${c.entity_id||'x'}`;
+  const canvas = document.getElementById(id);
+  if (!canvas || typeof Chart === 'undefined') return;
+  const labels = ph.monthly_paid.map(r=>r.month);
+  const values = ph.monthly_paid.map(r=>r.paid);
+  try {
+    new Chart(canvas.getContext('2d'), {
+      type:'bar',
+      data:{
+        labels,
+        datasets:[{
+          label:'Paid $',
+          data: values,
+          backgroundColor:'rgba(77,101,255,.55)',
+          borderColor:'#4d65ff',
+          borderWidth:1,
+          borderRadius:4,
+        }]
+      },
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:(ctx)=>' $'+ctx.parsed.y.toFixed(0)}}},
+        scales:{
+          x:{ticks:{color:'#a6abd4',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}},
+          y:{ticks:{color:'#a6abd4',font:{size:9},callback:(v)=>'$'+v},grid:{color:'rgba(255,255,255,.04)'}}
+        }
+      }
+    });
+  } catch(e){ console.warn('chart err',e); }
+}
+
+/* ---------- GBP panel ---------- */
+function renderGbpPanel(c, data){
+  const pid = (data && data.place_id) || c.place_id || '';
+  const mlink = (data && data.map_link) || c.map_link || '';
+  const mapsUrl = pid ? `https://www.google.com/maps/place/?q=place_id:${pid}` : (mlink || '');
+  if (!pid && !mlink){
+    return `<div class="gbp-panel">
+      <div class="gbp-head"><h3>Google Business Profile</h3></div>
+      <div class="gbp-empty">No place_id or map_link on record for this customer.</div>
+    </div>`;
+  }
+  return `
+    <div class="gbp-panel">
+      <div class="gbp-head">
+        <h3>Google Business Profile</h3>
+        <div class="spacer"></div>
+        ${mapsUrl ? `<a class="ext" href="${esc(mapsUrl)}" target="_blank" rel="noopener">Open on Google Maps ↗</a>`:''}
+      </div>
+      <div id="gbp_${esc(c.entity_id||'x')}">
+        <div class="gbp-empty">Loading GBP snapshot…</div>
+      </div>
+    </div>`;
+}
+
+const gbpCache = {};
+
+async function mountGbpPanel(c, data){
+  const pid = (data && data.place_id) || c.place_id || '';
+  if (!pid) return;
+  const host = document.getElementById(`gbp_${c.entity_id||'x'}`);
+  if (!host) return;
+  let gbp = gbpCache[pid];
+  if (!gbp) {
+    try {
+      const res = await fetch(`data/gbp/${pid}.json`, {cache:'no-store'});
+      if (!res.ok) throw new Error('not-found');
+      gbp = await res.json();
+      gbpCache[pid] = gbp;
+    } catch (e){
+      host.innerHTML = `<div class="gbp-empty">GBP snapshot not yet scraped for this place. Run <code>scripts/gbp_scraper.py --place-id ${esc(pid)}</code> to fetch.</div>`;
+      return;
+    }
+  }
+  if (gbp.error){
+    host.innerHTML = `<div class="gbp-empty">GBP scrape error: ${esc(gbp.error)}</div>`;
+    return;
+  }
+  const stars = gbp.rating != null ? '★'.repeat(Math.round(gbp.rating)) + '☆'.repeat(5-Math.round(gbp.rating)) : '';
+  host.innerHTML = `
+    <div class="gbp-body">
+      <div>
+        <div class="gbp-stat"><div class="l">Rating</div>
+          <div class="rating">${gbp.rating != null ? gbp.rating.toFixed(1) : '—'}
+          <small>${stars}${gbp.review_count != null ? ' · '+gbp.review_count+' reviews' : ''}</small></div></div>
+        <div class="gbp-stat" style="margin-top:10px"><div class="l">Primary category</div>${esc(gbp.primary_category||'—')}</div>
+        <div class="gbp-stat" style="margin-top:10px"><div class="l">Status</div>${esc(gbp.hours_status||gbp.status||'—')}</div>
+        <div class="gbp-stat" style="margin-top:10px"><div class="l">Attributes</div>
+          ${(gbp.attributes && gbp.attributes.length) ? `<div class="kw" style="margin-top:6px">${gbp.attributes.map(a=>`<span>${esc(a)}</span>`).join('')}</div>`: '—'}
+        </div>
+      </div>
+      <div>
+        <div class="gbp-stat"><div class="l">Address</div>${esc(gbp.address||'—')}</div>
+        <div class="gbp-stat" style="margin-top:10px"><div class="l">Phone</div>${esc(gbp.phone||'—')}</div>
+        <div class="gbp-stat" style="margin-top:10px"><div class="l">Website</div>${gbp.website?`<a href="${esc(gbp.website)}" target="_blank" rel="noopener">${esc(gbp.website)}</a>`:'—'}</div>
+        ${gbp.owner_description ? `<div class="gbp-stat" style="margin-top:10px"><div class="l">From the owner</div><div style="font-size:11px;line-height:1.55;max-height:140px;overflow:auto">${esc(gbp.owner_description)}</div></div>`:''}
+      </div>
+    </div>`;
+}
+
+$('m_close').onclick = ()=>modalEl.classList.remove('open');
+modalEl.addEventListener('click', e=>{ if (e.target === modalEl) modalEl.classList.remove('open'); });
+document.addEventListener('keydown', e=>{ if (e.key==='Escape') modalEl.classList.remove('open'); });
+
+/* ---- Tabs ---- */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick = ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    state.tab = t.dataset.tab;
+    document.querySelectorAll('.panel').forEach(p=>p.classList.add('hidden'));
+    $('p_'+state.tab).classList.remove('hidden');
+    if (state.tab === 'overview') renderOverview();
+    if (state.tab === 'cause') renderCauseTab();
+    if (state.tab === 'comms') renderCommsInsights();
+  };
+});
+
+/* ---- Filters ---- */
+document.querySelectorAll('.rp').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('.rp').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    state.month = b.dataset.month;
+    // Mirror into from/to for any helpers that still reference them.
+    if (state.month === 'all'){
+      state.from = winMeta.default_start || '';
+      state.to = winMeta.default_end || '';
+    } else {
+      const [y,m] = state.month.split('-').map(Number);
+      const mstart = `${y}-${String(m).padStart(2,'0')}-01`;
+      const mend = (new Date(Date.UTC(y, m, 0))).toISOString().slice(0,10);
+      state.from = mstart; state.to = mend;
+    }
+    if ($('from')) $('from').value = state.from;
+    if ($('to')) $('to').value = state.to;
+    rerender();
+  };
+});
+['from','to'].forEach(id=>{
+  const el = $(id); if (!el) return;
+  el.oninput = ()=>{state[id] = el.value; rerender();};
+});
+$('fAm').onchange = ()=>{state.am = $('fAm').value; rerender();};
+$('fState').onchange = ()=>{state.state = $('fState').value; rerender();};
+$('fCat').onchange = ()=>{state.cat = $('fCat').value; rerender();};
+$('fLead').onchange = ()=>{state.lead = $('fLead').value; rerender();};
+$('fSearch').oninput = ()=>{state.q = $('fSearch').value; rerender();};
+$('btnReset').onclick = ()=>{
+  state.am = state.state = state.cat = state.lead = state.q = '';
+  state.month = 'all';
+  state.from = winMeta.default_start; state.to = winMeta.default_end;
+  $('fAm').value = $('fState').value = $('fCat').value = $('fLead').value = $('fSearch').value = '';
+  if ($('from')) $('from').value = state.from;
+  if ($('to')) $('to').value = state.to;
+  document.querySelectorAll('.rp').forEach(x=>x.classList.remove('active'));
+  const defaultPill = document.querySelector('.rp[data-month="all"]');
+  if (defaultPill) defaultPill.classList.add('active');
+  rerender();
+};
+
+/* ---- Export ---- */
+function churnExportRows(){
+  return getChurned().map(c=>({
+    Business: c.biz_name, AM: c.am, State: c.state, Category: c.category,
+    'Churn date': c.churn_date, 'Tenure (d)': c.tenure_days, MRR: c.mrr,
+    'Primary cause': c.primary_cause_label || c.primary_cause || '',
+    'Preventability': c.preventability_tier || '',
+    'Prev. score': c.preventability_score || 0,
+    'Turning point': c.turning_point_date || '',
+    'Median reply (d)': c.median_response_days == null ? '' : c.median_response_days,
+    'Ignored inbound': c.ignored_inbound_count || 0,
+    'Silent at churn (d)': c.days_silent_at_churn, 'Decay %': c.decay_pct,
+    'Inbound 90d': c.inbound_90d, 'Outbound 90d': c.outbound_90d,
+    'Dominant channel': c.dominant_channel_90d, Reason: c.reason_category,
+    'Detailed reason': c.detailed_reason, Entity: c.entity_id, Customer: c.customer_id,
+  }));
+}
+$('btnCsv').onclick = ()=>{
+  const rows = churnExportRows();
+  if (!rows.length) return;
+  const keys = Object.keys(rows[0]);
+  const csv = [keys.join(','), ...rows.map(r=>keys.map(k=>{
+    const v = r[k]==null?'':String(r[k]);
+    return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v;
+  }).join(','))].join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `zoca_churn_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+};
+$('btnXlsx').onclick = ()=>{
+  const rows = churnExportRows();
+  if (!rows.length) return;
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Churned');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(getAtRisk().map(c=>({
+    Business:c.biz_name, AM:c.am, State:c.state, Tier:c.risk_tier, Score:c.risk_score,
+    MRR:c.mrr, 'Comms 30d':c.comms_30d, 'Last contact':c.last_contact, Signals:(c.risk_signals||[]).join(' | '),
+  }))), 'At-risk');
+  XLSX.writeFile(wb, `zoca_churn_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
+
+/* ---- Re-render (recompute filters + panels) ---- */
+function rerender(){
+  computeKpis();
+  if (state.tab === 'overview') renderOverview();
+  if (state.tab === 'cause') renderCauseTab();
+  renderChurnedTable();
+  renderRiskTable();
+  renderRetained();
+  renderAm();
+  if (state.tab === 'comms') renderCommsInsights();
+}
+rerender();
+renderOverview();
+
+/* ==========================================================================
+   Live refresh — trigger the analyzer via GitHub Actions workflow_dispatch
+   The refresh runs in GH Actions (~5 minutes), rebuilds the dashboard, and
+   pushes to main. This page polls the workflow run status and auto-reloads
+   once the run completes.
+   ========================================================================== */
+const RF_REPO_OWNER    = "siranjt";
+const RF_REPO_NAME     = "zoca-churn-dashboard";
+const RF_WORKFLOW_FILE = "refresh.yml";
+const RF_PAT_KEY       = "zoca_churn_refresh_pat_v1";
+const RF_LAST_RUN_KEY  = "zoca_churn_last_run_id_v1";
+
+const rfEl = {
+  backdrop: $('rfBackdrop'),
+  close:    $('rfClose'),
+  cancel:   $('rfCancel'),
+  go:       $('rfGo'),
+  pat:      $('rfPat'),
+  status:   $('rfStatus'),
+  btn:      $('btnRefresh'),
+  btnLbl:   $('btnRefreshLbl'),
+};
+
+function rfOpen(){
+  const stored = localStorage.getItem(RF_PAT_KEY) || '';
+  rfEl.pat.value = stored;
+  rfEl.status.className = 'rf-status';
+  rfEl.status.textContent = '';
+  rfEl.backdrop.classList.remove('hidden');
+  setTimeout(()=>rfEl.pat.focus(), 60);
+}
+function rfClose(){ rfEl.backdrop.classList.add('hidden'); }
+function rfSetStatus(kind, msg){
+  rfEl.status.className = 'rf-status show ' + kind;
+  rfEl.status.innerHTML = msg;
+}
+function rfSetBtnState(running){
+  rfEl.btn.disabled = running;
+  rfEl.btn.classList.toggle('spin', running);
+  rfEl.btnLbl.textContent = running ? 'Refreshing…' : 'Refresh';
+}
+
+rfEl.btn.addEventListener('click', rfOpen);
+rfEl.close.addEventListener('click', rfClose);
+rfEl.cancel.addEventListener('click', rfClose);
+rfEl.backdrop.addEventListener('click', e=>{ if (e.target === rfEl.backdrop) rfClose(); });
+
+rfEl.go.addEventListener('click', async ()=>{
+  const pat = (rfEl.pat.value || '').trim();
+  if (!pat || !/^(gh[pous]_|github_pat_)/.test(pat)) {
+    rfSetStatus('err', 'That does not look like a valid GitHub token. Paste a token that starts with <code>ghp_</code> or <code>github_pat_</code>.');
+    return;
+  }
+  localStorage.setItem(RF_PAT_KEY, pat);
+  rfSetStatus('info', 'Triggering GitHub Actions workflow…');
+
+  try {
+    // Fire workflow_dispatch
+    const dispatchRes = await fetch(
+      `https://api.github.com/repos/${RF_REPO_OWNER}/${RF_REPO_NAME}/actions/workflows/${RF_WORKFLOW_FILE}/dispatches`,
+      {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/vnd.github+json',
+          'Authorization': 'Bearer ' + pat,
+          'X-GitHub-Api-Version': '2022-11-28',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ref: 'main' }),
+      }
+    );
+    if (!dispatchRes.ok) {
+      const txt = await dispatchRes.text();
+      if (dispatchRes.status === 401 || dispatchRes.status === 403) {
+        rfSetStatus('err', 'GitHub rejected the token (status ' + dispatchRes.status + '). Make sure it has <code>repo</code> + <code>workflow</code> scopes.');
+      } else if (dispatchRes.status === 404) {
+        rfSetStatus('err', 'Workflow <code>refresh.yml</code> not found on the repo yet. The workflow file needs to be committed to <code>.github/workflows/</code> on main first.');
+      } else {
+        rfSetStatus('err', 'GitHub API error ' + dispatchRes.status + ': ' + txt.slice(0,180));
+      }
+      return;
+    }
+
+    rfSetStatus('info', 'Refresh queued ✓ — polling for completion. This typically takes <b>4–6 minutes</b>. You can leave this tab open; the dashboard will reload automatically.');
+    rfSetBtnState(true);
+
+    // Poll for the newly queued run
+    const startedAt = Date.now();
+    let runId = null;
+    let attempts = 0;
+    const maxAttempts = 120; // ~10 min @ 5s
+
+    while (attempts < maxAttempts) {
+      await new Promise(r=>setTimeout(r, 5000));
+      attempts++;
+      try {
+        const runsRes = await fetch(
+          `https://api.github.com/repos/${RF_REPO_OWNER}/${RF_REPO_NAME}/actions/workflows/${RF_WORKFLOW_FILE}/runs?per_page=5`,
+          {
+            headers: {
+              'Accept': 'application/vnd.github+json',
+              'Authorization': 'Bearer ' + pat,
+              'X-GitHub-Api-Version': '2022-11-28',
+            },
+          }
+        );
+        if (!runsRes.ok) continue;
+        const runsJson = await runsRes.json();
+        const runs = (runsJson && runsJson.workflow_runs) || [];
+        if (!runId) {
+          // Grab the most recent workflow_dispatch run created after we clicked
+          const candidate = runs.find(r => r.event === 'workflow_dispatch' && new Date(r.created_at).getTime() >= startedAt - 30000);
+          if (candidate) { runId = candidate.id; }
+        }
+        if (runId) {
+          const hit = runs.find(r => r.id === runId);
+          if (hit) {
+            const elapsed = Math.max(0, Math.round((Date.now() - startedAt)/1000));
+            if (hit.status === 'completed') {
+              if (hit.conclusion === 'success') {
+                rfSetStatus('ok', '✓ Refresh completed in ' + elapsed + 's. Reloading the dashboard with fresh data…');
+                setTimeout(()=>{ location.reload(); }, 1800);
+                return;
+              } else {
+                rfSetStatus('err', 'Run <a href="' + hit.html_url + '" target="_blank">#' + hit.run_number + '</a> failed with status <code>' + hit.conclusion + '</code>. Open the run for details.');
+                rfSetBtnState(false);
+                return;
+              }
+            } else {
+              rfSetStatus('info', 'Workflow run <a href="' + hit.html_url + '" target="_blank">#' + hit.run_number + '</a> is <b>' + hit.status + '</b> (' + elapsed + 's elapsed). Waiting for completion…');
+            }
+          }
+        }
+      } catch (err) {
+        // transient — keep polling
+      }
+    }
+    rfSetStatus('err', 'Timed out waiting for the workflow to complete. It may still finish in the background — check <a href="https://github.com/' + RF_REPO_OWNER + '/' + RF_REPO_NAME + '/actions" target="_blank">GitHub Actions</a>.');
+    rfSetBtnState(false);
+  } catch (err) {
+    rfSetStatus('err', 'Network error: ' + (err && err.message ? err.message : err));
+    rfSetBtnState(false);
+  }
+});
+
+// Esc-to-close for the modal
+document.addEventListener('keydown', e=>{
+  if (e.key === 'Escape' && !rfEl.backdrop.classList.contains('hidden')) rfClose();
+});
+</script>
+</body>
+</html>
