@@ -1,0 +1,97 @@
+name: Refresh Churn Dashboard
+ 
+on:
+  workflow_dispatch:
+  schedule:
+    # Every 6 hours at :07 past the hour (avoid peak cron congestion)
+    - cron: '7 */6 * * *'
+ 
+permissions:
+  contents: write
+ 
+concurrency:
+  group: refresh-dashboard
+  cancel-in-progress: false
+ 
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+ 
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+ 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+ 
+      - name: Prepare working tree
+        run: |
+          set -e
+          mkdir -p mnt/outputs/data/comms
+          # The analyzer expects the template + logo at the workdir root.
+          cp scripts/churn_dashboard_template.html ./churn_dashboard_template.html
+          if [ -f scripts/zoca_logo.svg ]; then
+            cp scripts/zoca_logo.svg ./zoca_logo.svg
+          fi
+ 
+      - name: Run churn analyzer
+        env:
+          ZOCA_WORKDIR: ${{ github.workspace }}
+          ZOCA_OUTPUT_DIR: ${{ github.workspace }}/mnt/outputs
+          ZOCA_CACHE_DIR: ${{ github.workspace }}/.cache
+          ZOCA_LOGO_PATH: ${{ github.workspace }}/zoca_logo.svg
+          ZOCA_TEMPLATE_PATH: ${{ github.workspace }}/churn_dashboard_template.html
+          CHARGEBEE_KEY: ${{ secrets.CHARGEBEE_KEY }}
+          METABASE_TOKEN: ${{ secrets.METABASE_TOKEN }}
+        run: |
+          set -e
+          python3 scripts/churn_analyzer.py
+ 
+      - name: Stage published artifacts
+        run: |
+          set -e
+          # Copy index.html
+          cp mnt/outputs/index.html ./index.html
+          # Wipe + copy data/
+          rm -rf data
+          mkdir -p data/comms
+          # Copy non-comms payload files (cause.json, etc. — if any)
+          find mnt/outputs/data -mindepth 1 -maxdepth 1 ! -name comms \
+            -exec cp -R {} data/ \; 2>/dev/null || true
+          # Only copy non-stale comms JSON files
+          if [ -d mnt/outputs/data/comms ]; then
+            for f in mnt/outputs/data/comms/*.json; do
+              [ -f "$f" ] || continue
+              if grep -q '"_stale":\s*true' "$f" 2>/dev/null; then
+                continue
+              fi
+              cp "$f" "data/comms/$(basename "$f")"
+            done
+          fi
+          # Ensure Jekyll doesn't eat our data/ dir
+          touch .nojekyll
+          # Preserve the logo at repo root
+          if [ -f scripts/zoca_logo.svg ]; then
+            cp scripts/zoca_logo.svg ./zoca_logo.svg
+          fi
+ 
+      - name: Commit and push
+        run: |
+          set -e
+          git config user.email "churn-bot@zoca.com"
+          git config user.name  "Zoca Churn Bot (GH Actions)"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes — nothing to commit."
+            exit 0
+          fi
+          STAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+          COMMS_COUNT=$(find data/comms -type f -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          git commit -m "Auto-refresh (CI) — ${STAMP} (${COMMS_COUNT} comms files)"
+          git push origin HEAD:main
+ 
