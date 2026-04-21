@@ -62,6 +62,13 @@ COMMS_URLS = {
 
 ACTIVE_STATUSES = {"active", "non_renewing", "in_trial", "future", "paused"}
 
+# Entity IDs permanently excluded from the dashboard (non-beauty/wellness businesses
+# or known bad data that should never appear in any view).
+EXCLUDED_ENTITY_IDS = {
+    "976402d1-93a3-4cae-a9a8-403d036fe7c9",  # ShadeTree LandscapeDesign (landscaping)
+    "d48d0b60-ec2a-4b6e-8120-87d7fa9a7a68",  # Fortitude CrossFit (gym)
+}
+
 # Scope: only analyze churns from this date forward.
 CHURN_SINCE = date(2026, 2, 1)
 COMMS_HISTORY_DAYS = 120           # how far back to keep per-customer messages (covers Nov ramp-up)
@@ -1824,7 +1831,9 @@ def write_customer_comms_files(customers: list[dict], messages_by_entity: dict, 
 
 def build_payload(rows: list[dict]) -> dict:
     _log("Slimming BaseSheet customers…")
-    customers = [slim_customer(r) for r in rows]
+    customers = [slim_customer(r) for r in rows
+                 if (r.get("entity_id") or "").strip() not in EXCLUDED_ENTITY_IDS]
+    _log(f"Excluded {len(rows) - len(customers)} rows by EXCLUDED_ENTITY_IDS")
 
     # 1. Chargebee validation for candidates inside the validation window
     candidates_raw: list[dict] = []
