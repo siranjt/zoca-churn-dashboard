@@ -62,11 +62,32 @@ COMMS_URLS = {
 
 ACTIVE_STATUSES = {"active", "non_renewing", "in_trial", "future", "paused"}
 
-# Entity IDs permanently excluded from the dashboard (non-beauty/wellness businesses
-# or known bad data that should never appear in any view).
+# Entity IDs permanently excluded from the dashboard (non-beauty/wellness businesses,
+# test accounts, or records with no Chargebee account that should never appear in any view).
 EXCLUDED_ENTITY_IDS = {
+    # Non-beauty/wellness businesses
     "976402d1-93a3-4cae-a9a8-403d036fe7c9",  # ShadeTree LandscapeDesign (landscaping)
     "d48d0b60-ec2a-4b6e-8120-87d7fa9a7a68",  # Fortitude CrossFit (gym)
+    # Test accounts
+    "6f284391-f65c-4662-bdea-cd3e152e1fc3",  # Saxena's Spa (test)
+    "7a82fdbb-f519-4d38-b3f9-b8dfd5760d0b",  # Slayishhh Blast (test)
+    # No Chargebee record found — not real Zoca customers
+    "0206f838-9f72-4f60-8150-34741f93d136",  # Bikini Bar
+    "205706f9-df3c-46d5-b14e-2ba4ebdce9ea",  # Sonoran Skin Renewal
+    "2543e0d5-4765-4fe0-bfa3-c2ca4eaba903",  # Being U Lash Art
+    "37f13d5e-fd87-4576-813a-daa25ef60cb0",  # National Lymphatic Centers - Joliet
+    "4afd86da-5a1d-4c9c-b65e-0e7b957967a8",  # 28 Skin Envy
+    "5f39bcf3-3b3b-4cef-8d60-1b2fe2d90332",  # Pour Vous Healing & Restoré Spa
+    "622ca82d-8d0f-46b8-b83d-40e8828af51d",  # EJMMARIELA SBEAUTY Nails & Hair
+    "766e3f14-b5dd-4303-9058-ac122ef874b9",  # Nancy's Nail Spa
+    "8e61d2c9-63bf-40c6-9be3-5b71b99bf7b7",  # H L beauty lounge
+    "965ae212-0016-47da-98d7-fa3e0357614e",  # Luxe Wellness Spa
+    "a4252121-049e-43aa-a0fb-a45c06c09ccb",  # Botanic Face & Body Spa
+    "bdd32d1c-a9a5-43b3-80a6-f548932cb4b9",  # No. 21 Floral Design
+    "cb16c8b6-79a9-4ea5-a212-6b915b647848",  # National Lymphatic Centers (1)
+    "f28ec82c-fdfa-4ce5-a3a6-8ee8f10bb952",  # National Lymphatic Centers (2)
+    "fb0fa7b6-e255-40d7-b7bd-fc79e4348691",  # Celtic Spa & Laser Services
+    "fe85662b-41af-4f23-bb3b-f7973fe1a118",  # Kevin Alexander | Hairstylist
 }
 
 # Scope: only analyze churns from this date forward.
