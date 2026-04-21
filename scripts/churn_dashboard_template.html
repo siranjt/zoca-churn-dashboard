@@ -1256,7 +1256,7 @@ function renderRetained(){
 
 function renderAm(){
   const windowChurned = getChurned();
-  const active = customers.filter(c=>!c.churn_date);
+  const active = customers.filter(c=>!c.churn_date && c.chrone_status === 'ZOCA');
   const amMap = {};
   active.forEach(c=>{const k = c.am||'Unassigned'; amMap[k] = amMap[k] || {am:k, active:0, churned:0, arr:0, risk_high:0}; amMap[k].active++; if(c.risk_tier==='High') amMap[k].risk_high++;});
   windowChurned.forEach(c=>{const k = c.am||'Unassigned'; amMap[k] = amMap[k] || {am:k, active:0, churned:0, arr:0, risk_high:0}; amMap[k].churned++; amMap[k].arr += (c.mrr||0)*12;});

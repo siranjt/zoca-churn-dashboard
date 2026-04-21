@@ -1877,12 +1877,18 @@ def build_payload(rows: list[dict]) -> dict:
     # 4. At-risk scoring on active customers
     _log("Scoring at-risk customers…")
     for c in customers:
-        if c.get("churn_date") is None:
+        if c.get("churn_date") is None and c.get("chrone_status") == "ZOCA":
+            # Genuinely active customer — score for at-risk
             rs = compute_at_risk_score(c, comms_stats)
             c["risk_score"] = rs["score"]
             c["risk_tier"] = rs["tier"]
             c["risk_signals"] = rs["signals"]
             c["last_contact"] = rs["last_contact"]
+        elif c.get("churn_date") is None and c.get("chrone_status") != "ZOCA":
+            # Pre-window churn (chrone_status = "Chrone" etc.) — treat as historical, exclude from active
+            c["risk_score"] = 0
+            c["risk_tier"] = "Historical"
+            c["risk_signals"] = []
         else:
             c["risk_score"] = 0
             c["risk_tier"] = "Churned" if c.get("is_churned_validated") else "Historical"
