@@ -2,10 +2,7 @@ name: Refresh Churn Dashboard
  
 on:
   workflow_dispatch:
-  schedule:
-    # Every 6 hours at :07 past the hour (avoid peak cron congestion)
-    - cron: '7 */6 * * *'
- 
+  s
 permissions:
   contents: write
  
